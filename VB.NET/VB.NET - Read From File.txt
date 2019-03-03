@@ -1,0 +1,14 @@
+    Private Function ReadFromFile(ByVal FileName As String) As String
+        Dim FS As New IO.FileStream(FileName, IO.FileMode.Open)
+        Dim SR As New IO.StreamReader(FS)
+        Dim Retorno As String
+
+        Try
+            Retorno = SR.ReadToEnd()
+        Finally
+            FS.Close()
+        End Try
+
+        Return Retorno
+
+    End Function

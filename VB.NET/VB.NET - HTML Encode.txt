@@ -1,0 +1,23 @@
+    ''' <summary>
+    ''' Função para converter caractéres especiais em HTML encode
+    ''' </summary>
+    ''' <param name="text">texto</param>
+    ''' <returns>html encoded string</returns>
+    ''' <remarks></remarks>
+    Private Function _HTMLEncodeSpecialChars(ByVal text As String) As String
+
+        Dim SB As New System.Text.StringBuilder
+
+        For Each c As Char In text
+            If (AscW(c) > 127 Or AscW(c) = 60 Or AscW(c) = 62) Then
+                ' special chars
+                SB.Append(String.Format("&#{0};", AscW(c)))
+            Else
+                SB.Append(c)
+            End If
+
+        Next
+
+        Return SB.ToString()
+
+    End Function

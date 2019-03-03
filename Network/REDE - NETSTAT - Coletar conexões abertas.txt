@@ -1,0 +1,24 @@
+REM @Echo Off
+
+Echo ****************************************** >> C:\Output.txt
+Echo ========================================== >> C:\Output.txt
+date /T >> C:\Output.txt
+time /T >> C:\Output.txt
+
+Echo ========================================== >> C:\Output.txt
+Echo Total de Conexoes TCP: >> C:\Output.txt
+Echo ---------------------- >> C:\Output.txt
+netstat.exe -na | Find "TCP" /C >> C:\Output.txt
+
+Echo ========================================== >> C:\Output.txt
+Echo Conexoes x PID: >> C:\Output.txt
+Echo --------------- >> C:\Output.txt
+netstat.exe -nao >> C:\Output.txt
+
+Echo ========================================== >> C:\Output.txt
+Echo Processos W3WP.EXE: >> C:\Output.txt
+Echo ------------------- >> C:\Output.txt
+c:\windows\system32\inetsrv\appcmd.exe list wp >> C:\Output.txt
+
+Echo ========================================== >> C:\Output.txt
+Echo ****************************************** >> C:\Output.txt

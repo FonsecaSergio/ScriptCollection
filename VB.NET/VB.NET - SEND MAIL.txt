@@ -1,0 +1,43 @@
+    '// Example :
+    '// SendMail("someone@mycompany.com, _
+    '//          "support@dtsxchange.com", _
+    '//          "HTML Test Email!!!", _
+    '//          "<B>Hello</B> How are you?", _
+    '//          True)
+    Private Sub SendMail( _
+          ByVal SendTo As String, _
+          ByVal From As String, _
+          ByVal Subject As String, _
+          ByVal Body As String, _
+          Optional ByVal IsBodyHtml As Boolean = True, _
+          Optional ByVal SMTPServer As String = "localhost", _
+          Optional ByVal UserName As String = "", _
+          Optional ByVal Password As String = "", _
+          Optional ByVal Domain As String = "", _
+          Optional ByVal Attachments As String = "")
+
+        Dim oMessage As System.Net.Mail.MailMessage
+        Dim mySmtpClient As System.Net.Mail.SmtpClient
+
+        oMessage = New System.Net.Mail.MailMessage(From, SendTo, Subject, Body)
+        oMessage.IsBodyHtml = IsBodyHtml
+        '//Attachments
+        If Not String.IsNullOrEmpty(Attachments) Then
+            Dim sFiles() As String
+            Dim sFile As String
+            sFiles = Split(Attachments, ";")
+            For Each sFile In sFiles
+                If Not String.IsNullOrEmpty(sFile) Then
+                    oMessage.Attachments.Add(New Net.Mail.Attachment(sFile))
+                End If
+            Next
+        End If
+
+        mySmtpClient = New System.Net.Mail.SmtpClient(SMTPServer, 25)
+        If UserName = "" Then
+            mySmtpClient.Credentials = System.Net.CredentialCache.DefaultNetworkCredentials
+        Else
+            mySmtpClient.Credentials = New System.Net.NetworkCredential(UserName, Password, Domain)
+        End If
+        mySmtpClient.Send(oMessage)
+    End Sub

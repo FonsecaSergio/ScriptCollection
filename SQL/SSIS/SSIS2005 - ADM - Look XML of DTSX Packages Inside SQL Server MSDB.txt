@@ -1,0 +1,5 @@
+SELECT [name] AS SSISPackageName
+, CONVERT(XML, CONVERT(VARBINARY(MAX), packagedata)) AS SSISPackageXML
+FROM msdb.dbo.sysdtspackages90
+
+--http://www.sqlservercentral.com/articles/Integration+Services+(SSIS)/70011/

@@ -1,0 +1,4 @@
+Dim cultura As New System.Globalization.CultureInfo("en-US")
+
+TEMP_File_1 = FilePath + "R." + Now.ToString("ddMMMyyyy", cultura).ToUpper + ".AUXILIARY.GOL.T" + "1" + ".txt"
+TEMP_File_2 = FilePath + "R." + Now.ToString("ddMMMyyyy", cultura).ToUpper + ".AUXILIARY.GOL.T" + "2" + ".txt"

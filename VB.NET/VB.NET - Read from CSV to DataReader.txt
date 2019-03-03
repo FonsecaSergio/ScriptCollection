@@ -1,0 +1,29 @@
+Imports System.Data.Odbc
+
+ 
+
+Dim cnn As New OdbcConnection("Driver={Microsoft Text Driver (*.txt; *.csv)};DBQ=C:\tmp")
+
+Dim cmd As New OdbcCommand("SELECT * FROM Arquivo.txt", cnn)
+
+Dim dr As OdbcDataReader
+
+Try
+
+cnn.Open()
+
+dr = cmd.ExecuteReader(CommandBehavior.CloseConnection)
+
+While dr.Read()
+
+Console.WriteLine("Categoria={0}", dr(0).ToString)
+
+Console.WriteLine("Codigo={1}", dr(1).ToString)
+
+End While
+
+Catch ex As Exception
+
+MsgBox(ex.Message)
+
+End Try

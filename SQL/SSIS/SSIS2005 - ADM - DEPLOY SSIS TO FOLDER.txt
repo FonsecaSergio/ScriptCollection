@@ -1,0 +1,28 @@
+http://www.microsoft.com/communities/newsgroups/en-us/default.aspx?dg=microsoft.public.sqlserver.integrationsvcs&tid=c3a51992-9361-4a2a-94a0-2279acac7a5e&cat=en_US_B87779F1-5F2A-BCA9-44E6-32CC9285F648&lang=en&cr=US&sloc=&p=1
+
+If you're prepared to brave the command-line (and assuming the folders are 
+already created) you can do it using the following the dtutil utility: 
+
+dtutil /DestS <server name> /DestU <username> /DestP <password> /FILE <file path>\<file name> /Copy SQL;<MSDB 'file' path>\<MSDB 'file' name> /QUIET
+
+remove the /QUIET switch if you want to be prompted to do overwrites. 
+
+If you want to get a bit cleverer combine it with forfiles to recursively 
+deploy all .dtsx files in a particular location; 
+
+forfiles /p <file path> /c "cmd /c dtutil /DestS <server name> /DestU <username> /DestP <password> /FILE @path /Copy SQL;<MSDB file path>\@fname /QUIET /s /m *.dtsx 
+
+@path and @fname are forfiles variables for more information consult: 
+http://technet.microsoft.com/en-us/library/cc753551.aspx. 
+
+Put this in a batch file and fully automate your SSIS deployment. 
+
+
+EXEMPLO
+dtutil /DestS VIENA /FILE "Carga TEAMS A to F.dtsx" /Encrypt SQL;"TEAMS\Carga TEAMS A to F";5 /QUIET
+dtutil /DestS VIENA /FILE "Carga TEAMS G to M.dtsx" /Encrypt SQL;"TEAMS\Carga TEAMS G to M";5 /QUIET
+dtutil /DestS VIENA /FILE "Carga TEAMS O to Q.dtsx" /Encrypt SQL;"TEAMS\Carga TEAMS O to Q";5 /QUIET
+dtutil /DestS VIENA /FILE "Carga TEAMS R to TC.dtsx" /Encrypt SQL;"TEAMS\Carga TEAMS R to TC";5 /QUIET
+dtutil /DestS VIENA /FILE "Carga TEAMS TD to Z.dtsx" /Encrypt SQL;"TEAMS\Carga TEAMS TD to Z";5 /QUIET
+PAUSE
+

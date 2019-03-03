@@ -1,0 +1,19 @@
+        Dim SqlConnection As SqlClient.SqlConnection
+
+        Try
+            SqlConnection = CType(Me.Connections.SQL2005.AcquireConnection(Nothing), SqlClient.SqlConnection)
+            MsgBox(SqlConnection.ConnectionString)
+        Catch ex As Exception
+            MsgBox("ERRO CONEXÃO - " + ex.Message)
+        Finally
+            Me.Connections.SQL2005.ReleaseConnection(SqlConnection)
+        End Try
+
+        Try
+            Me.OutputVendasBuffer.AddRow()
+            Me.OutputVendasBuffer.X = 2
+            Me.OutputVendasBuffer.SetEndOfRowset()
+
+        Catch ex As Exception
+            MsgBox("ERRO SOURCE - " + ex.Message)
+        End Try

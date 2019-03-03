@@ -1,0 +1,10 @@
+Ligar e desligar HyperV Hypervisor
+
+--DEFAULT
+bcdedit /set hypervisorlaunchtype Auto
+
+--DESLIGA e REINICIA
+bcdedit /set hypervisorlaunchtype off
+
+--LIGA MANUALMENTE
+bcdedit /set hypervisorlaunchtype on

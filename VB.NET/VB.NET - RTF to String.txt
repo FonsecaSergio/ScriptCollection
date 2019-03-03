@@ -1,0 +1,61 @@
+    Public Shared Function RtfToString(ByVal TextoOriginal As String) As String
+        Try
+            Dim texto As String = TextoOriginal
+            If TextoOriginal <> "" Then
+                Dim i As Integer
+                Dim palavra As String
+                Dim tchr As Char
+                For i = 0 To texto.Length
+                    If i + 3 <= texto.Length Then
+                        If texto(i) = "\" And texto(i + 1) = "'" Then
+                            palavra = "&H" + texto(i + 2) + texto(i + 3)
+                            tchr = Chr(palavra)
+                            palavra = "\'" + texto(i + 2) + texto(i + 3)
+                            texto = texto.Replace(palavra, tchr)
+                        End If
+                    End If
+                Next
+
+                'Remove chaves
+                texto = texto.Substring(texto.IndexOf("{") + 1)
+                texto = texto.Substring(0, texto.LastIndexOf("}"))
+
+                'Remove "\par"
+                texto = texto.Replace("\par", "")
+                texto = texto.Replace("\tab", "")
+
+                'Remove ENTERs
+                'texto = texto.Replace(Chr(13) + Chr(10), "")
+
+                'Remove Texto entre chaves
+                While texto.Contains("{") = True And texto.Contains("}") = True
+                    texto = texto.Remove(texto.IndexOf("{"), texto.LastIndexOf("}") - texto.IndexOf("{") + 1)
+                End While
+                
+                'Limpa tags RTF
+                Const CaracterTemporario As String = Chr(1)
+                texto = texto.Replace("\\", CaracterTemporario)
+
+                While texto.Contains("\") = True
+                    Dim IndexBarra As Integer = texto.IndexOf("\") - 1
+                    If IndexBarra < 0 Then
+                        IndexBarra = 0
+                    End If
+                    Dim IndexEspaco As Integer = texto.IndexOf(" ") + 1
+                    texto = texto.Remove(IndexBarra, IndexEspaco - IndexBarra)
+                End While
+
+                texto = texto.Replace(CaracterTemporario, "\")
+
+                
+                'Retorna Texto
+                texto = RTrim(LTrim(texto))
+
+                Return texto
+            Else
+                Return ""
+            End If
+        Catch ex As Exception
+            Return "Error - RtfToString::" + ex.Message
+        End Try
+    End Function

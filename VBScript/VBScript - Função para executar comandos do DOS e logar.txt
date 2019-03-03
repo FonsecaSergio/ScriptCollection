@@ -1,0 +1,33 @@
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''' Função para executar comando do DOS e logar se necessário
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''' Command - Comando a ser executado ("DIR D:\BACKUP")
+'''' LogPath - Caminho para salvar LOG ("C:\TESTE.TXT") OU ("") PARA ficar sem LOG
+'''' Overwrite - True - para sobrescrever LOG / False - para NÃO sobrescrever LOG
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Function ExecCmdPrompt ( Command, LogPath, Overwrite )
+
+	Set wshshell = CreateObject ( "WScript.shell" )
+	 
+	IF Overwrite = True Then
+		Overwrite = ">"
+	ELSE
+		Overwrite = ">>"
+	END IF
+	
+
+	IF LogPath <> "" Then
+		ExeComand = "%comspec% /C " & Command & " " & Overwrite & " " & LogPath
+	ELSE
+		ExeComand = "%comspec% /C " & Command
+	END IF
+
+	Teste = wshshell.Run (ExeComand ,1,True)
+
+	IF Teste = 0 Then
+		ExecCmdPrompt = False
+	ELSE
+		ExecCmdPrompt = True
+	END IF
+
+End Function

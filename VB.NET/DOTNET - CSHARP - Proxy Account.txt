@@ -1,0 +1,8 @@
+HttpWebRequest request = (HttpWebRequest)WebRequest.Create(URL); 
+//Create proxy credentials 
+ICredentials credential = new NetworkCredential(uid, password, domain); 
+//Create proxy server. byPassListArray is a string array of local ip's to bypass 
+IWebProxy proxyServer = new WebProxy(proxy,true,byPassListArray,credential); 
+
+request.Proxy = proxyServer; 
+request.Credentials = new NetworkCredential(Uid,Password); 

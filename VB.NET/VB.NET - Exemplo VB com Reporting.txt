@@ -1,0 +1,24 @@
+Dim rs As New ReportExecution.ReportExecutionService()
+	rs.Credentials = System.Net.CredentialCache.DefaultCredentials
+
+	Dim format As String = "PDF"
+	Dim deviceInfo As String = Nothing
+	Dim extension As String = String.Empty
+	Dim encoding As String = String.Empty
+	Dim mimeType As String = String.Empty
+	Dim warnings() As ReportExecution.Warning = Nothing
+
+	Dim streamIDs() As String = Nothing
+	Dim results() As Byte
+
+	Dim parameters(0) As ReportExecution.ParameterValue
+	parameters(0) = New ReportExecution.ParameterValue()
+	parameters(0).Name = "EmployeeKey"
+	parameters(0).Value = -1
+
+	rs.LoadReport("/Sales/Sales Person Directory", Nothing)
+	rs.SetExecutionParameters(parameters, "en-us")
+
+	results = rs.Render(format, deviceInfo, extension, encoding, mimeType, warnings, streamIDs)
+
+	' Do something with results...

@@ -1,0 +1,19 @@
+    Private Sub WriteToFile( _
+        ByVal Texto As String, _
+        ByVal FileName As String, _
+        Optional ByVal ioFileMode As IO.FileMode = IO.FileMode.Append, _
+        Optional ByVal ioFileAccess As IO.FileAccess = IO.FileAccess.Write _
+        )
+
+        Dim FS As New IO.FileStream(FileName, ioFileMode, ioFileAccess)
+        Dim SW As New IO.StreamWriter(FS)
+
+        Try
+            SW.WriteLine(Texto)
+        Catch ex As Exception
+            Throw ex
+        Finally
+            SW.Flush()
+            FS.Close()
+        End Try
+    End Sub

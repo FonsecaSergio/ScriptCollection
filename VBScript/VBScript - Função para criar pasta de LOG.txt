@@ -1,0 +1,86 @@
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''' Função para criar pasta de LOG
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''' PathLog - Por exemplo "C:\VOXAGE\Logs"
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+Private Function CriaPastaLog( PathLog )
+
+	Set fso = CreateObject("Scripting.FileSystemObject")
+
+	StrYear = CStr( Year ( Now ) )
+	StrMonth = RIGHT("0" & CStr( Month ( Now ) ), 2)
+	StrDay = RIGHT("0" & CStr( Day ( Now ) ), 2)
+
+	'Consiste PathLog
+	PathLog = UCase(PathLog)
+
+	'Adiciona a última barra do endereçamento
+	If Right(PathLog, 1) <> "\" Then
+		PathLog = PathLog & "\"
+	End If
+
+	If Mid(PathLog, 1, 2) = "\\" Then
+		blnDiretorioRede = True
+	ElseIf ((Asc(Left(PathLog, 1)) > 65 And Asc(Left(PathLog, 1)) < 90) _
+	And Mid(PathLog, 2, 2) = ":\") Then
+		blnDiretorioRede = False
+	End If
+
+	'Cria todas as pastas e sub-pastas
+	blnFimCriacao = False
+	
+	If blnDiretorioRede Then
+		intPosicaoDe = InStr(3, PathLog, "\")                  'Localiza o nome do recurso compartilhado
+		intPosicaoDe = InStr(intPosicaoDe + 1, PathLog, "\")   'Localiza o inicio da primeira pasta
+		While Not blnFimCriacao
+			intPosicaoAte = InStr(intPosicaoDe + 1, PathLog, "\")
+			If intPosicaoAte = 0 Then
+				blnFimCriacao = True
+			Else
+				strPasta = Left(PathLog, intPosicaoAte)
+				intPosicaoDe = intPosicaoAte
+				If NOT fso.FolderExists ( strPasta )  Then
+					fso.CreateFolder( strPasta  )
+				End If
+			End If
+		Wend
+
+		Else
+
+		intPosi = 3
+
+		While Not blnFimCriacao
+			intPosicaoAte = InStr(intPosicaoDe + 1, PathLog, "\")
+			If intPosicaoAte = 0 Then
+				blnFimCriacao = True
+			Else
+				strPasta = Left(PathLog, intPosicaoAte)
+				intPosicaoDe = intPosicaoAte
+				If NOT fso.FolderExists ( strPasta ) Then 
+					fso.CreateFolder( strPasta  )
+				End If
+			End If
+		Wend
+	End If
+
+	'Cria a pasta Ano
+	prstrArqLog = PathLog & "\"  & StrYear
+	If NOT fso.FolderExists ( prstrArqLog )  Then
+		fso.CreateFolder( prstrArqLog )
+	End If
+
+	'Cria a pasta Mes
+	prstrArqLog = prstrArqLog & "\" & StrMonth
+	If NOT fso.FolderExists ( prstrArqLog )  Then
+		fso.CreateFolder( prstrArqLog )
+	End If
+
+	'Cria a pasta dia
+	prstrArqLog = prstrArqLog & "\" & StrDay
+	If NOT fso.FolderExists ( prstrArqLog )  Then
+		fso.CreateFolder( prstrArqLog )
+	End If
+
+	CriaPastaLog = prstrArqLog
+
+End Function

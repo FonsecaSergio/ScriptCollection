@@ -1,0 +1,44 @@
+public override void CreateNewOutputRows()
+{
+// Create the StreamReader object to read the input file
+System.IO.StreamReader reader = new System.IO.StreamReader(this.Variables.Filename);
+
+// Loop through the file to read each line
+while(!reader.EndOfStream)
+{
+// Read one line
+string line = reader.ReadLine();
+
+// Break the file apart into atomic elements
+string[] items = line.Split('|');
+
+// Record type 1 is Manager
+if (items[0] == "1")
+{
+ManagerOutputBuffer.AddRow();
+ManagerOutputBuffer.ManagerID = int.Parse(items[1]);
+ManagerOutputBuffer.ManagerName = items[2];
+ManagerOutputBuffer.ManagerRole = items[3];
+ManagerOutputBuffer.Location = items[4];
+}
+
+// Record type 2 is Employee
+elseif (items[0] == "2")
+{
+EmployeeOutputBuffer.AddRow();
+EmployeeOutputBuffer.EmployeeID = int.Parse(items[1]);
+EmployeeOutputBuffer.ManagerID = int.Parse(items[2]);
+EmployeeOutputBuffer.EmployeeName = items[3];
+EmployeeOutputBuffer.EmployeeRole = items[4];
+}
+
+// Record type 3 is Client
+elseif (items[0] == "3")
+{
+ClientOutputBuffer.AddRow();
+ClientOutputBuffer.SalespersonID = int.Parse(items[1]);
+ClientOutputBuffer.ClientID = int.Parse(items[2]);
+ClientOutputBuffer.ClientName = items[3];
+}
+}
+}
