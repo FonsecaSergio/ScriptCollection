@@ -36,6 +36,14 @@ conditions contained within the Premier Customer Services Description.
 -- 12/2/2016 Fixed transport-level error issue with SQL Server 2016 SP1.
 -- 2/16/2016 Added NOLOCK hints.
 -- 3/28/2017 Fixed missing characters in offset fetches.
+-- 10/11/2017 Commented out Stored procedure stats section to optimize for in-flight requests.
+-- 10/20/2017 Added Query stats section.
+
+
+/*
+NOTE: Some sections are commented out for a quick default insight to in-flight requests. 
+	Uncomment section you would like to execute as well for a more holistic approach on executions. 
+*/
 
 SET NOCOUNT ON;
 DECLARE @UpTime VARCHAR(12), @StartDate DATETIME, @sqlmajorver int, @sqlcmd NVARCHAR(500), @params NVARCHAR(500)
@@ -433,6 +441,7 @@ WHERE es.session_id <> @@SPID AND es.is_user_process = 1
 	AND (es.session_id IN (SELECT er3.blocking_session_id FROM sys.dm_exec_requests (NOLOCK) er3) OR er.blocking_session_id IS NOT NULL OR er.blocking_session_id > 0)
 ORDER BY blocked_spid, is_head_blocker DESC, blocked_spid_wait_time_ms DESC, blocker_spid
 
+/*
 -- Stored procedure stats
 DECLARE @sqlmajorver int, @sqlcmd VARCHAR(4000)
 SELECT @sqlmajorver = CONVERT(int, (@@microsoftversion / 0x1000000) & 0xff);
@@ -466,9 +475,35 @@ BEGIN
 	EXEC (@sqlcmd);
  END
  
+-- Query stats
+IF @sqlmajorver >= 11
+BEGIN
+	SET @sqlcmd = N'SELECT CASE WHEN CONVERT(int,pa.value) = 32767 THEN ''ResourceDB'' ELSE DB_NAME(CONVERT(int,pa.value)) END AS DatabaseName,
+	(SELECT st.text AS [text()] FROM sys.dm_exec_sql_text(qs.plan_handle) AS st FOR XML PATH(''''), TYPE) AS [sqltext],
+	qs.creation_time AS cached_time,
+	qs.last_execution_time,
+	qs.execution_count,
+	qs.total_elapsed_time/qs.execution_count AS avg_elapsed_time,
+	qs.last_elapsed_time,
+	qs.total_worker_time/qs.execution_count AS avg_cpu_time,
+	qs.last_worker_time AS last_cpu_time,
+	qs.min_worker_time AS min_cpu_time, qs.max_worker_time AS max_cpu_time,
+	qs.total_logical_reads/qs.execution_count AS avg_logical_reads,
+	qs.last_logical_reads, qs.min_logical_reads, qs.max_logical_reads,
+	qs.total_physical_reads/qs.execution_count AS avg_physical_reads,
+	qs.last_physical_reads, qs.min_physical_reads, qs.max_physical_reads,
+	qs.total_logical_writes/qs.execution_count AS avg_logical_writes,
+	qs.last_logical_writes, qs.min_logical_writes, qs.max_logical_writes
+FROM sys.dm_exec_query_stats (NOLOCK) AS qs
+CROSS APPLY sys.dm_exec_plan_attributes(qs.plan_handle) AS pa
+WHERE pa.attribute = ''dbid'''
+	EXEC (@sqlcmd);
+END
+*/
+
+/*
 -- Acquired locks
-/*SELECT tl.*, sp.[object_id], sp.index_id 
+SELECT tl.*, sp.[object_id], sp.index_id 
 FROM sys.dm_tran_locks (NOLOCK) tl
 LEFT JOIN sys.partitions (NOLOCK) sp ON tl.resource_associated_entity_id = sp.[hobt_id]
 */
-GO

@@ -1,1 +1,0 @@
-SELECT sys.fn_PhysLocFormatter(%%physloc%%) AS Location, * FROM dbo.T1;
