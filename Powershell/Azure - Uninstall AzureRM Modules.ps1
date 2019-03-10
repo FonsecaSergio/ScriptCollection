@@ -1,4 +1,6 @@
-﻿Get-InstalledModule -Name AzureRm -AllVersions
+﻿#https://docs.microsoft.com/en-us/powershell/azure/new-azureps-module-az?view=azps-1.4.0
+
+Get-InstalledModule -Name AzureRm -AllVersions
 
 function Uninstall-AllModules {
   param(
@@ -46,7 +48,17 @@ function Uninstall-AllModules {
   }
 }
 
-$versions = (Get-InstalledModule AzureRm -AllVersions | Select-Object Version)
-$versions[1..($versions.Length-1)]  | foreach { Uninstall-AllModules -TargetModule AzureRm -Version ($_.Version) -Force }
+[array]$versions = (Get-InstalledModule AzureRm -AllVersions | Select-Object Version)
+foreach ($version in $versions)
+{
+
+    Uninstall-AllModules -TargetModule AzureRm -Version ($version.Version) -Force
+}
 
 Get-InstalledModule -Name AzureRm -AllVersions
+
+#https://docs.microsoft.com/en-us/powershell/azure/install-az-ps
+#Install-Module -Name Az -AllowClobber
+#Update-Module -Name Az
+#Import-Module -Name Az
+#Enable-AzureRmAlias
