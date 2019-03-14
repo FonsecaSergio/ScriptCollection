@@ -1,15 +1,4 @@
-﻿<#
-param(
-    [Parameter (Mandatory = $true)]
-    [string]$SubscriptionName,
-    #SEFONSEC Microsoft Azure Internal Consumption
-
-    [Parameter (Mandatory = $false)]
-    [System.Collections.ArrayList]$IgnoreResGroups
-    #On Azure Runbook send as JSON format ['LogAnalytics','MIJumpbox','NetworkWatcherRG']
-
-#>
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 Import-Module Az.Accounts
 Import-Module Az.Sql
