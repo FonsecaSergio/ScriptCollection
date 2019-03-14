@@ -23,7 +23,7 @@ if ((Get-Variable -Name "SubscriptionName" ) -eq $null)
     { [string]$SubscriptionName = "" }  
 
 if ((Get-Variable -Name "IgnoreResGroups" ) -eq $null) 
-    { [System.Collections.ArrayList]$IgnoreResGroups }  
+    { [System.Collections.ArrayList]$IgnoreResGroups = @() }  
 
 
 <#Enable for alert https://docs.microsoft.com/en-us/azure/automation/automation-alert-metric#>
