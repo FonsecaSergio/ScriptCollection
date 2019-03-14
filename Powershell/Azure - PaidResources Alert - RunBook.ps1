@@ -19,12 +19,15 @@ try{
     $Conn = Get-AutomationConnection -Name 'AzureRunAsConnection'
 } catch {}
 
-if ((Get-Variable -Name "SubscriptionName" ) -eq $null) 
-    { [string]$SubscriptionName = "" }  
+try{
+    if ((Get-Variable -Name "SubscriptionName" ) -eq $null) 
+        { [string]$SubscriptionName = "" }  
+} catch {}
 
+try{
 if ((Get-Variable -Name "IgnoreResGroups" ) -eq $null) 
     { [System.Collections.ArrayList]$IgnoreResGroups = @() }  
-
+} catch {}
 
 <#Enable for alert https://docs.microsoft.com/en-us/azure/automation/automation-alert-metric#>
 
@@ -190,10 +193,10 @@ Write-Output "------------------------------------------------------------------
 
 if($ResourcesAlert.Count -ge 1)
 {
-    Write-Output "## Send Alert ##"
-
     $NotificationText = "$($ResourcesAlert.Count) PAYING Resources"
 
+    Write-Output "## Send Alert ##"
+    Write-Output $NotificationText 
     Write-Error -Message ($NotificationText)
 
 }
