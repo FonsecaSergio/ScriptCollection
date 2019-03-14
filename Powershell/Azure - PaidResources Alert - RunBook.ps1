@@ -7,13 +7,16 @@
 #    [System.Collections.ArrayList]$IgnoreResGroups
 #    #On Azure Runbook send as JSON format ['LogAnalytics','MIJumpbox','NetworkWatcherRG']
 #)
+
 $ErrorActionPreference = "Stop"
 
 Import-Module Az.Accounts
 Import-Module Az.Sql
 Import-Module Az.Resources
 
-$Conn = Get-AutomationConnection -Name 'AzureRunAsConnection'
+try{
+    $Conn = Get-AutomationConnection -Name 'AzureRunAsConnection'
+} catch {}
 
 
 #Enable for alert https://docs.microsoft.com/en-us/azure/automation/automation-alert-metric
@@ -199,5 +202,3 @@ else
 }
 
 
-#TEST
-#CheckPaidAzureResources
