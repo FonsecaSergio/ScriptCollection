@@ -34,13 +34,8 @@ if ((Get-Variable -Name "IgnoreResGroups" ) -eq $null)
 ##########################################################################################################################################################>
 
 <#
-[string]$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
-
-[System.Collections.ArrayList]$IgnoreResGroups = @(
-    "LogAnalytics", 
-    "MIJumpbox",
-    "NetworkWatcherRG"
-)
+    [string]$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
+    [System.Collections.ArrayList]$IgnoreResGroups = @("LogAnalytics", "MIJumpbox","NetworkWatcherRG")
 #>
 
 [System.Collections.ArrayList]$IgnoreAzureResourcesTypesFree = @(
