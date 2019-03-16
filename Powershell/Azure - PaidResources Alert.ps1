@@ -6,20 +6,23 @@ Import-Module Az.Resources
 ##########################################################################################################################################################
 [string]$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
 
-[System.Collections.ArrayList]$IgnoreResGroups = @(
-    "LogAnalytics", 
-    "MIJumpbox",
-    "NetworkWatcherRG"
-)
-
-[System.Collections.ArrayList]$IgnoreAzureResourcesTypesFree = @(
+[System.Collections.ArrayList]$AzureResourcesToIgnoreTypesFree = @(
     "microsoft.insights/alertrules",
     "Microsoft.Network/networkWatchers",
     "Microsoft.Network/virtualNetworks",
     "Microsoft.Sql/servers",
     "Microsoft.Automation/automationAccounts",
-    "Microsoft.Automation/automationAccounts/runbooks"
+    "Microsoft.Automation/automationAccounts/runbooks",
+    "microsoft.insights/actiongroups",
+    "microsoft.insights/metricalerts",
+    "Microsoft.Network/networkIntentPolicies",
+    "Microsoft.Network/networkSecurityGroups",
+    "Microsoft.Network/routeTables"
 )
+
+[string]$TagIgnoreName = "Ignore"
+[string]$TagIgnoreValue = "true"
+$ErrorActionPreference = "Stop"
 
 
 
@@ -41,30 +44,71 @@ if ($context -eq $null)
 ##########################################################################################################################################################
 #Get Resources Groups / Remove  Ignorables
 ##########################################################################################################################################################
-[System.Collections.ArrayList]$AzureResourceGroups = Get-AzResourceGroup
-$AzureResourceGroups = @($AzureResourceGroups | Where-Object {$_.ResourceGroupName -notin $IgnoreResGroups})
+Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Gray
+Write-Host "Will only evaluate the selected RESOURCE GROUPS" -ForegroundColor  DarkCyan
+Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Gray
 
-Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Gray
-Write-Host "Will only evaluate the selected RESOURCE GROUPS, will ignore ($($IgnoreResGroups.Count) Res Group )" -ForegroundColor  DarkCyan
-Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Gray
-Write-Host ($AzureResourceGroups | Select ResourceGroupName | Out-String) -ForegroundColor Gray
+[System.Collections.ArrayList]$ResourceGroups = @()
+[System.Collections.ArrayList]$ResourceGroupsToIgnore = @()
+
+$ResourceGroups = @(Get-AzResourceGroup)
+
+foreach ($AzureResourceGroup in $ResourceGroups)
+{
+    if ($AzureResourceGroup.Tags -ne $null)
+    {
+        if ($AzureResourceGroup.Tags.ContainsKey($TagIgnoreName))
+        {
+            if ($AzureResourceGroup.Tags.Item($TagIgnoreName) -eq $TagIgnoreValue)
+            {
+                Write-Host "Resource Group ($($AzureResourceGroup.ResourceGroupName)) with TAG - Ignore" -ForegroundColor Yellow
+                $ResourceGroupsToIgnore.Add($AzureResourceGroup.ResourceGroupName) | Out-Null
+            }
+        }
+    }
+}
+
+$ResourceGroups = @($ResourceGroups | Where-Object {$_.ResourceGroupName -notin $ResourceGroupsToIgnore})
+
+Write-Host ($ResourceGroups | Select ResourceGroupName | Out-String) -ForegroundColor Gray
 
 
 
 ##########################################################################################################################################################
 #Get Resources / Remove Ignorables
 ##########################################################################################################################################################
-[System.Collections.ArrayList]$AzureResources = Get-AzResource
-$AzureResources = @($AzureResources | Where-Object {$_.ResourceGroupName -notin $IgnoreResGroups})
-$AzureResources = $AzureResources | Where-Object {$_.ResourceType -notin $IgnoreAzureResourcesTypesFree}
-
-[System.Collections.ArrayList]$AzureResourcesTypes = @($AzureResources | Select ResourceType | sort-object ResourceType | Get-Unique -AsString)
-
 Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Gray
 Write-Host "Will only evaluate the selected RESOURCES" -ForegroundColor DarkCyan
 Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Gray
-Write-Host ($AzureResources | Select Type, ResourceGroupName, Name, ParentResource | Out-String) -ForegroundColor Gray
 
+[System.Collections.ArrayList]$AzureResources = @()
+[System.Collections.ArrayList]$AzureResourcesToIgnore = @()
+
+$AzureResources = @(Get-AzResource)
+
+#Remove Resource Groups to Ignore
+$AzureResources = @($AzureResources | Where-Object {$_.ResourceGroupName -notin $ResourceGroupsToIgnore})
+
+#Remove Resources that are free / unexpensive
+$AzureResources = $AzureResources | Where-Object {$_.ResourceType -notin $AzureResourcesToIgnoreTypesFree}
+
+foreach ($AzureResource in $AzureResources)
+{
+    if (($AzureResource.Tags).Count -gt 0)
+    {
+        if ($AzureResource.Tags.ContainsKey($TagIgnoreName))
+        {
+            if ($AzureResource.Tags.Item($TagIgnoreName) -eq $TagIgnoreValue)
+            {
+                Write-Host "Resource ($($AzureResource.Name)) with TAG - Ignore" -ForegroundColor Yellow
+                $AzureResourcesToIgnore.Add($AzureResource.ResourceId) | Out-Null
+            }
+        }
+    }  
+}
+$AzureResources = @($AzureResources | Where-Object {$_.ResourceId -notin $AzureResourcesToIgnore})
+
+Write-Host ($AzureResources | Select Type, ResourceGroupName, Name | Out-String) -ForegroundColor Gray
 
 
 ##########################################################################################################################################################
@@ -73,8 +117,8 @@ Write-Host ($AzureResources | Select Type, ResourceGroupName, Name, ParentResour
 Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Gray
 Write-Host "Get Databases / Remove Ignorables" -ForegroundColor DarkCyan
 Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Gray
-[System.Collections.ArrayList]$AzureDatabasesToIgnore = @()
 [System.Collections.ArrayList]$AzureDatabases = @()
+[System.Collections.ArrayList]$AzureDatabasesToIgnore = @()
 
 $AzureDatabases = @($AzureResources | Where-Object {$_.Type -eq "Microsoft.Sql/servers/databases"})
 
@@ -84,7 +128,7 @@ foreach ($database in $AzureDatabases)
     $DatabaseName = ($database.Name -split '/')[1]
 
     if ($DatabaseName -eq "master")
-    {
+    {        
         $AzureDatabasesToIgnore += $database
     }
     else
@@ -94,20 +138,9 @@ foreach ($database in $AzureDatabases)
         #Database basic are cheap - Ignore
         if ($databaseObject.SkuName -eq "Basic")
         {
+            Write-Host "DB ($($database.Name)) is Basic - Ignore" -ForegroundColor Yellow
             $AzureDatabasesToIgnore += $database
         }
-
-        try
-        {
-            #$databaseObject.DatabaseName
-            #Database containg tag "Ignore"
-            if ($databaseObject.Tags.ContainsKey("Ignore").ToString() -eq "true")
-            {
-                $AzureDatabasesToIgnore += $database
-            }
-        }
-        catch {}
-
     }
 }
 
@@ -124,8 +157,9 @@ Write-Host ""
 Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Gray
 Write-Host "Get StorageAccounts / Remove Ignorables" -ForegroundColor DarkCyan
 Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Gray
-[System.Collections.ArrayList]$AzureStorageToIgnore = @()
 [System.Collections.ArrayList]$AzureStorageAccounts = @()
+[System.Collections.ArrayList]$AzureStorageAccountsToIgnore = @()
+
 $AzureStorageAccounts = @($AzureResources | Where-Object {$_.Type -eq "Microsoft.Storage/storageAccounts"})
 
 foreach ($StorageAccount in $AzureStorageAccounts)
@@ -135,33 +169,39 @@ foreach ($StorageAccount in $AzureStorageAccounts)
     #Storage Account standard are cheap - Ignore
     if ($StorageAccountObject.Sku.Tier -eq "Standard")
     {
-        $AzureStorageToIgnore += $StorageAccount
+        Write-Host "Storage Account ($($StorageAccountObject.StorageAccountName)) is Standard - Ignore" -ForegroundColor Yellow
+        $AzureStorageAccountsToIgnore += $StorageAccount
     }
 }
 
-foreach ($StorageAccount in $AzureStorageToIgnore)
+foreach ($StorageAccount in $AzureStorageAccountsToIgnore)
 {
     $AzureResources.Remove($StorageAccount)
 }
 
-Write-Host "Removed ($($AzureStorageToIgnore.Count) / $($AzureStorageAccounts.Count)) storage accounts" -ForegroundColor Gray
+Write-Host "Removed ($($AzureStorageAccountsToIgnore.Count) / $($AzureStorageAccounts.Count)) storage accounts" -ForegroundColor Gray
 Write-Host ""
+
+##########################################################################################################################################################
+#ALERTS
 ##########################################################################################################################################################
 [System.Collections.ArrayList]$ResourcesAlert = @()
-$ResourcesAlert = @($AzureResources | Select Type, ResourceGroupName, Name, ParentResource | Out-String)
-
-
-Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Red
-Write-Host "Check this resources" -ForegroundColor Red
-Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Red
-Write-Host ($ResourcesAlert) -ForegroundColor Red
-Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Red
-
-#New-AzSqlDatabase -DatabaseName StandardTest -ResourceGroupName CSSAzureDB -ServerName Fonsecanet -Edition Standard -RequestedServiceObjectiveName S0
-#Get-AzSqlDatabase  -DatabaseName StandardTest -ResourceGroupName CSSAzureDB -ServerName Fonsecanet | Set-AzSqlDatabase -Tags @{Ignore="true"}
+if (($AzureResources | Select Type, ResourceGroupName, Name | Out-String).Length -gt 0)
+{
+    foreach ($AzureResource in @($AzureResources | Select Type, ResourceGroupName, Name))
+    {
+        $ResourcesAlert.Add($AzureResource) | Out-Null
+    }
+}
 
 if($ResourcesAlert.Count -ge 1)
 {
+    Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Red
+    Write-Host "Check this resources" -ForegroundColor Red
+    Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Red
+    Write-Host ($AzureResources | Select Type, ResourceGroupName, Name | Out-String) -ForegroundColor Red
+    Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Red
+
     Write-Host "## Send Alert ##" -ForegroundColor Red
 
     $NotificationText = "$($ResourcesAlert.Count) PAYING Resources"
@@ -176,7 +216,7 @@ if($ResourcesAlert.Count -ge 1)
     $balloon.Visible = $true 
     $balloon.ShowBalloonTip(5000)
 
-    Write-Error -Message ($NotificationText)
+    Write-Error -Message ($NotificationText) 
 }
 else
 {

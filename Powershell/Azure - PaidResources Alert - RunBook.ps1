@@ -1,36 +1,21 @@
-﻿$ErrorActionPreference = "Stop"
+﻿param(
+    [Parameter (Mandatory = $true)]
+    [string]$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption",
+    #SEFONSEC Microsoft Azure Internal Consumption
+)
+
+$ErrorActionPreference = "Stop"
 
 Import-Module Az.Accounts
 Import-Module Az.Sql
 Import-Module Az.Resources
 
-try{
-    $Conn = Get-AutomationConnection -Name 'AzureRunAsConnection'
-} catch {}
-
-try{
-    if ((Get-Variable -Name "SubscriptionName" ) -eq $null) 
-        { [string]$SubscriptionName = "" }  
-} catch {}
-
-try{
-if ((Get-Variable -Name "IgnoreResGroups" ) -eq $null) 
-    { [System.Collections.ArrayList]$IgnoreResGroups = @() }  
-} catch {}
-
 <#Enable for alert https://docs.microsoft.com/en-us/azure/automation/automation-alert-metric#>
-
 
 <##########################################################################################################################################################
 #Parameters
 ##########################################################################################################################################################>
-
-<#
-    [string]$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
-    [System.Collections.ArrayList]$IgnoreResGroups = @("LogAnalytics", "MIJumpbox","NetworkWatcherRG")
-#>
-
-[System.Collections.ArrayList]$IgnoreAzureResourcesTypesFree = @(
+[System.Collections.ArrayList]$AzureResourcesToIgnoreTypesFree = @(
     "microsoft.insights/alertrules",
     "Microsoft.Network/networkWatchers",
     "Microsoft.Network/virtualNetworks",
@@ -38,18 +23,22 @@ if ((Get-Variable -Name "IgnoreResGroups" ) -eq $null)
     "Microsoft.Automation/automationAccounts",
     "Microsoft.Automation/automationAccounts/runbooks",
     "microsoft.insights/actiongroups",
-    "microsoft.insights/metricalerts"
+    "microsoft.insights/metricalerts",
+    "Microsoft.Network/networkIntentPolicies",
+    "Microsoft.Network/networkSecurityGroups",
+    "Microsoft.Network/routeTables"
 )
 
-
+[string]$TagIgnoreName = "Ignore"
+[string]$TagIgnoreValue = "true"
+$ErrorActionPreference = "Stop"
 
 <##########################################################################################################################################################
 #Connect
 ##########################################################################################################################################################>
-<#
-    Clear-Host
-    Disconnect-AzAccount
-#>
+try{
+    $Conn = Get-AutomationConnection -Name 'AzureRunAsConnection'
+} catch {}
 
 $context = Get-AzContext 
 
@@ -58,44 +47,84 @@ if ($context -eq $null)
     Connect-AzAccount -ServicePrincipal -Tenant $Conn.TenantID -ApplicationId $Conn.ApplicationID -CertificateThumbprint $Conn.CertificateThumbprint -Subscription $Conn.SubscriptionId
 }
 
-<##########################################################################################################################################################
+##########################################################################################################################################################
 #Get Resources Groups / Remove  Ignorables
-##########################################################################################################################################################>
-[System.Collections.ArrayList]$AzureResourceGroups = Get-AzResourceGroup
-$AzureResourceGroups = @($AzureResourceGroups | Where-Object {$_.ResourceGroupName -notin $IgnoreResGroups})
-
+##########################################################################################################################################################
 Write-Output "---------------------------------------------------------------------------------------------------------------"
-Write-Output "Will only evaluate the selected RESOURCE GROUPS, will ignore ($($IgnoreResGroups.Count) Res Group )"
+Write-Output "Will only evaluate the selected RESOURCE GROUPS"
 Write-Output "---------------------------------------------------------------------------------------------------------------"
-Write-Output ($AzureResourceGroups | Select ResourceGroupName | Out-String)
+
+[System.Collections.ArrayList]$ResourceGroups = @()
+[System.Collections.ArrayList]$ResourceGroupsToIgnore = @()
+
+$ResourceGroups = @(Get-AzResourceGroup)
+
+foreach ($AzureResourceGroup in $ResourceGroups)
+{
+    if ($AzureResourceGroup.Tags -ne $null)
+    {
+        if ($AzureResourceGroup.Tags.ContainsKey($TagIgnoreName))
+        {
+            if ($AzureResourceGroup.Tags.Item($TagIgnoreName) -eq $TagIgnoreValue)
+            {
+                Write-Output "Resource Group ($($AzureResourceGroup.ResourceGroupName)) with TAG - Ignore"
+                $ResourceGroupsToIgnore.Add($AzureResourceGroup.ResourceGroupName) | Out-Null
+            }
+        }
+    }
+}
+
+$ResourceGroups = @($ResourceGroups | Where-Object {$_.ResourceGroupName -notin $ResourceGroupsToIgnore})
+
+Write-Output ($ResourceGroups | Select ResourceGroupName | Out-String)
 
 
 
-<##########################################################################################################################################################
+##########################################################################################################################################################
 #Get Resources / Remove Ignorables
-##########################################################################################################################################################>
-[System.Collections.ArrayList]$AzureResources = Get-AzResource
-
-$AzureResources = @($AzureResources | Where-Object {$_.ResourceGroupName -notin $IgnoreResGroups})
-$AzureResources = $AzureResources | Where-Object {$_.ResourceType -notin $IgnoreAzureResourcesTypesFree}
-
-[System.Collections.ArrayList]$AzureResourcesTypes = @($AzureResources | Select ResourceType | sort-object ResourceType | Get-Unique -AsString)
-
+##########################################################################################################################################################
 Write-Output "---------------------------------------------------------------------------------------------------------------"
 Write-Output "Will only evaluate the selected RESOURCES"
 Write-Output "---------------------------------------------------------------------------------------------------------------"
-Write-Output ($AzureResources | Select Type, ResourceGroupName, Name, ParentResource | Out-String)
+
+[System.Collections.ArrayList]$AzureResources = @()
+[System.Collections.ArrayList]$AzureResourcesToIgnore = @()
+
+$AzureResources = @(Get-AzResource)
+
+#Remove Resource Groups to Ignore
+$AzureResources = @($AzureResources | Where-Object {$_.ResourceGroupName -notin $ResourceGroupsToIgnore})
+
+#Remove Resources that are free / unexpensive
+$AzureResources = $AzureResources | Where-Object {$_.ResourceType -notin $AzureResourcesToIgnoreTypesFree}
+
+foreach ($AzureResource in $AzureResources)
+{
+    if (($AzureResource.Tags).Count -gt 0)
+    {
+        if ($AzureResource.Tags.ContainsKey($TagIgnoreName))
+        {
+            if ($AzureResource.Tags.Item($TagIgnoreName) -eq $TagIgnoreValue)
+            {
+                Write-Output "Resource ($($AzureResource.Name)) with TAG - Ignore"
+                $AzureResourcesToIgnore.Add($AzureResource.ResourceId) | Out-Null
+            }
+        }
+    }  
+}
+$AzureResources = @($AzureResources | Where-Object {$_.ResourceId -notin $AzureResourcesToIgnore})
+
+Write-Output ($AzureResources | Select Type, ResourceGroupName, Name | Out-String)
 
 
-
-<##########################################################################################################################################################
+##########################################################################################################################################################
 #Get Databases / Remove Ignorables
-##########################################################################################################################################################>
+##########################################################################################################################################################
 Write-Output "---------------------------------------------------------------------------------------------------------------"
 Write-Output "Get Databases / Remove Ignorables"
 Write-Output "---------------------------------------------------------------------------------------------------------------"
-[System.Collections.ArrayList]$AzureDatabasesToIgnore = @()
 [System.Collections.ArrayList]$AzureDatabases = @()
+[System.Collections.ArrayList]$AzureDatabasesToIgnore = @()
 
 $AzureDatabases = @($AzureResources | Where-Object {$_.Type -eq "Microsoft.Sql/servers/databases"})
 
@@ -105,30 +134,19 @@ foreach ($database in $AzureDatabases)
     $DatabaseName = ($database.Name -split '/')[1]
 
     if ($DatabaseName -eq "master")
-    {
+    {        
         $AzureDatabasesToIgnore += $database
     }
     else
     {
         $databaseObject = Get-AzSqlDatabase -ResourceGroupName $database.ResourceGroupName -ServerName $ServerName -DatabaseName $DatabaseName
         
-        <#Database basic are cheap - Ignore#>
+        #Database basic are cheap - Ignore
         if ($databaseObject.SkuName -eq "Basic")
         {
+            Write-Output "DB ($($database.Name)) is Basic - Ignore"
             $AzureDatabasesToIgnore += $database
         }
-
-        try
-        {
-            <#Database containg tag "Ignore"#>
-            if ($databaseObject.Tags.ContainsKey("Ignore").ToString() -eq "true")
-            {
-                $AzureDatabasesToIgnore += $database
-            }
-                
-        }
-        catch {}
-
     }
 }
 
@@ -139,15 +157,14 @@ foreach ($database in $AzureDatabasesToIgnore)
 
 Write-Output "Removed ($($AzureDatabasesToIgnore.Count) / $($AzureDatabases.Count)) databases"
 Write-Output ""
-
-<##########################################################################################################################################################
+##########################################################################################################################################################
 #Get StorageAccounts / Remove Ignorables
-##########################################################################################################################################################>
+##########################################################################################################################################################
 Write-Output "---------------------------------------------------------------------------------------------------------------"
 Write-Output "Get StorageAccounts / Remove Ignorables"
 Write-Output "---------------------------------------------------------------------------------------------------------------"
-[System.Collections.ArrayList]$AzureStorageToIgnore = @()
 [System.Collections.ArrayList]$AzureStorageAccounts = @()
+[System.Collections.ArrayList]$AzureStorageAccountsToIgnore = @()
 
 $AzureStorageAccounts = @($AzureResources | Where-Object {$_.Type -eq "Microsoft.Storage/storageAccounts"})
 
@@ -155,35 +172,44 @@ foreach ($StorageAccount in $AzureStorageAccounts)
 {
     $StorageAccountObject = Get-AzStorageAccount -ResourceGroupName $StorageAccount.ResourceGroupName -Name $StorageAccount.Name
     
-    <#Storage Account standard are cheap - Ignore#>
+    #Storage Account standard are cheap - Ignore
     if ($StorageAccountObject.Sku.Tier -eq "Standard")
     {
-        $AzureStorageToIgnore += $StorageAccount
+        Write-Output "Storage Account ($($StorageAccountObject.StorageAccountName)) is Standard - Ignore"
+        $AzureStorageAccountsToIgnore += $StorageAccount
     }
 }
 
-foreach ($StorageAccount in $AzureStorageToIgnore)
+foreach ($StorageAccount in $AzureStorageAccountsToIgnore)
 {
     $AzureResources.Remove($StorageAccount)
 }
 
-Write-Output "Removed ($($AzureStorageToIgnore.Count) / $($AzureStorageAccounts.Count)) storage accounts"
+Write-Output "Removed ($($AzureStorageAccountsToIgnore.Count) / $($AzureStorageAccounts.Count)) storage accounts"
 Write-Output ""
 
-<##########################################################################################################################################################>
+##########################################################################################################################################################
+#ALERTS
+##########################################################################################################################################################
 [System.Collections.ArrayList]$ResourcesAlert = @()
-$ResourcesAlert = @($AzureResources | Select Type, ResourceGroupName, Name, ParentResource | Out-String)
-
-Write-Output "---------------------------------------------------------------------------------------------------------------"
-Write-Output "Check this resources"
-Write-Output "---------------------------------------------------------------------------------------------------------------"
-Write-Output ($ResourcesAlert)
-Write-Output "---------------------------------------------------------------------------------------------------------------"
+if (($AzureResources | Select Type, ResourceGroupName, Name | Out-String).Length -gt 0)
+{
+    foreach ($AzureResource in @($AzureResources | Select Type, ResourceGroupName, Name))
+    {
+        $ResourcesAlert.Add($AzureResource) | Out-Null
+    }
+}
 
 if($ResourcesAlert.Count -ge 1)
 {
-    $NotificationText = "$($ResourcesAlert.Count) PAYING Resources"
+    Write-Output "---------------------------------------------------------------------------------------------------------------"
+    Write-Output "Check this resources"
+    Write-Output "---------------------------------------------------------------------------------------------------------------"
+    Write-Output ($AzureResources | Select Type, ResourceGroupName, Name | Out-String)
+    Write-Output "---------------------------------------------------------------------------------------------------------------"
 
+    $NotificationText = "$($ResourcesAlert.Count) PAYING Resources"
+    
     Write-Output "## Send Alert ##"
     Write-Output $NotificationText 
     Write-Error -Message ($NotificationText)
