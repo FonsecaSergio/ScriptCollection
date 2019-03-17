@@ -1,6 +1,7 @@
 ﻿Import-Module Az.Accounts
 Import-Module Az.Sql
 Import-Module Az.Resources
+Import-Module Az.Compute
 ##########################################################################################################################################################
 #Parameters
 ##########################################################################################################################################################
@@ -17,7 +18,15 @@ Import-Module Az.Resources
     "microsoft.insights/metricalerts",
     "Microsoft.Network/networkIntentPolicies",
     "Microsoft.Network/networkSecurityGroups",
-    "Microsoft.Network/routeTables"
+    "Microsoft.Network/routeTables",
+    "Microsoft.DevTestLab/schedules",
+    "Microsoft.Network/networkInterfaces",
+    "Microsoft.Network/publicIPAddresses",
+    "Microsoft.Compute/disks",
+    "Microsoft.Compute/virtualMachines/extensions",
+    "Microsoft.SqlVirtualMachine/SqlVirtualMachines",
+    "Microsoft.Sql/managedInstances/databases",
+    "Microsoft.Sql/virtualClusters"
 )
 
 [string]$TagIgnoreName = "Ignore"
@@ -61,7 +70,7 @@ foreach ($AzureResourceGroup in $ResourceGroups)
         {
             if ($AzureResourceGroup.Tags.Item($TagIgnoreName) -eq $TagIgnoreValue)
             {
-                Write-Host "Resource Group ($($AzureResourceGroup.ResourceGroupName)) with TAG - Ignore" -ForegroundColor Yellow
+                Write-Host "--> Resource Group ($($AzureResourceGroup.ResourceGroupName)) with TAG - Ignore" -ForegroundColor Yellow
                 $ResourceGroupsToIgnore.Add($AzureResourceGroup.ResourceGroupName) | Out-Null
             }
         }
@@ -100,7 +109,7 @@ foreach ($AzureResource in $AzureResources)
         {
             if ($AzureResource.Tags.Item($TagIgnoreName) -eq $TagIgnoreValue)
             {
-                Write-Host "Resource ($($AzureResource.Name)) with TAG - Ignore" -ForegroundColor Yellow
+                Write-Host "--> Resource ($($AzureResource.ResourceId)) with TAG - Ignore" -ForegroundColor Yellow
                 $AzureResourcesToIgnore.Add($AzureResource.ResourceId) | Out-Null
             }
         }
@@ -108,7 +117,13 @@ foreach ($AzureResource in $AzureResources)
 }
 $AzureResources = @($AzureResources | Where-Object {$_.ResourceId -notin $AzureResourcesToIgnore})
 
-Write-Host ($AzureResources | Select Type, ResourceGroupName, Name | Out-String) -ForegroundColor Gray
+
+foreach ($AzureResource in $AzureResources)
+{
+    Write-Host ("--> Type ($($AzureResource.Type)) / Res Group ($($AzureResource.ResourceGroupName)) / Name ($($AzureResource.Name))") -ForegroundColor Gray
+    Write-Verbose "--> ResourceId ($($AzureResource.ResourceId))"
+    Write-Verbose ("")
+}
 
 
 ##########################################################################################################################################################
@@ -128,8 +143,9 @@ foreach ($database in $AzureDatabases)
     $DatabaseName = ($database.Name -split '/')[1]
 
     if ($DatabaseName -eq "master")
-    {        
-        $AzureDatabasesToIgnore += $database
+    {
+        Write-Verbose "DB ($($database.Name)) is master - Ignore"
+        $AzureDatabasesToIgnore += $database.ResourceId
     }
     else
     {
@@ -138,16 +154,14 @@ foreach ($database in $AzureDatabases)
         #Database basic are cheap - Ignore
         if ($databaseObject.SkuName -eq "Basic")
         {
-            Write-Host "DB ($($database.Name)) is Basic - Ignore" -ForegroundColor Yellow
-            $AzureDatabasesToIgnore += $database
+            Write-Host "--> DB ($($database.Name)) is Basic - Ignore" -ForegroundColor Yellow
+            $AzureDatabasesToIgnore += $database.ResourceId
         }
     }
 }
 
-foreach ($database in $AzureDatabasesToIgnore)
-{
-    $AzureResources.Remove($database)
-}
+
+$AzureResources = @($AzureResources | Where-Object {$_.ResourceId -notin $AzureDatabasesToIgnore})
 
 Write-Host "Removed ($($AzureDatabasesToIgnore.Count) / $($AzureDatabases.Count)) databases" -ForegroundColor Gray
 Write-Host ""
@@ -169,17 +183,52 @@ foreach ($StorageAccount in $AzureStorageAccounts)
     #Storage Account standard are cheap - Ignore
     if ($StorageAccountObject.Sku.Tier -eq "Standard")
     {
-        Write-Host "Storage Account ($($StorageAccountObject.StorageAccountName)) is Standard - Ignore" -ForegroundColor Yellow
-        $AzureStorageAccountsToIgnore += $StorageAccount
+        Write-Host "--> Storage Account ($($StorageAccountObject.StorageAccountName)) is Standard - Ignore" -ForegroundColor Yellow
+        $AzureStorageAccountsToIgnore += $StorageAccount.ResourceId
     }
 }
 
-foreach ($StorageAccount in $AzureStorageAccountsToIgnore)
-{
-    $AzureResources.Remove($StorageAccount)
-}
+$AzureResources = @($AzureResources | Where-Object {$_.ResourceId -notin $AzureStorageAccountsToIgnore})
 
 Write-Host "Removed ($($AzureStorageAccountsToIgnore.Count) / $($AzureStorageAccounts.Count)) storage accounts" -ForegroundColor Gray
+Write-Host ""
+
+
+##########################################################################################################################################################
+#Get VMs / Remove Dealocatted
+##########################################################################################################################################################
+Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Gray
+Write-Host "Get VMs / Remove Dealocatted" -ForegroundColor DarkCyan
+Write-Host "---------------------------------------------------------------------------------------------------------------" -ForegroundColor Gray
+[System.Collections.ArrayList]$AzureVMs = @()
+[System.Collections.ArrayList]$AzureVMsToIgnore = @()
+
+## STILL NEED Resource type regular VM#######
+
+#$AzureVMs = @($AzureResources | Where-Object {$_.Type -eq "Microsoft.SqlVirtualMachine/SqlVirtualMachines"})
+$AzureVMs = @($AzureResources | Where-Object {$_.Type -eq "Microsoft.Compute/virtualMachines"})
+
+foreach ($AzureVM in $AzureVMs)
+{
+    $VMObject = Get-AzVM -ResourceGroupName $AzureVM.ResourceGroupName -Name $AzureVM.Name -Status
+    
+    #Storage Account standard are cheap - Ignore
+    foreach ($VMStatus in $VMObject.Statuses)
+    { 
+        if($VMStatus.Code.CompareTo("PowerState/deallocated") -eq 0)
+        {
+            Write-Host "--> VM ($($AzureVM.Name)) is Dealocatted - Ignore" -ForegroundColor Yellow
+            $AzureVMsToIgnore += $AzureVM
+        }
+    }
+}
+
+foreach ($AzureVM in $AzureVMsToIgnore)
+{
+    $AzureResources.Remove($AzureVM)
+}
+
+Write-Host "Removed ($($AzureVMsToIgnore.Count) / $($AzureVMs.Count)) VMs" -ForegroundColor Gray
 Write-Host ""
 
 ##########################################################################################################################################################

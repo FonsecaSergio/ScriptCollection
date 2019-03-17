@@ -9,6 +9,7 @@ $ErrorActionPreference = "Stop"
 Import-Module Az.Accounts
 Import-Module Az.Sql
 Import-Module Az.Resources
+Import-Module Az.Compute
 
 <#Enable for alert https://docs.microsoft.com/en-us/azure/automation/automation-alert-metric#>
 
@@ -26,7 +27,15 @@ Import-Module Az.Resources
     "microsoft.insights/metricalerts",
     "Microsoft.Network/networkIntentPolicies",
     "Microsoft.Network/networkSecurityGroups",
-    "Microsoft.Network/routeTables"
+    "Microsoft.Network/routeTables",
+    "Microsoft.DevTestLab/schedules",
+    "Microsoft.Network/networkInterfaces",
+    "Microsoft.Network/publicIPAddresses",
+    "Microsoft.Compute/disks",
+    "Microsoft.Compute/virtualMachines/extensions",
+    "Microsoft.SqlVirtualMachine/SqlVirtualMachines",
+    "Microsoft.Sql/managedInstances/databases",
+    "Microsoft.Sql/virtualClusters"
 )
 
 [string]$TagIgnoreName = "Ignore"
@@ -67,7 +76,7 @@ foreach ($AzureResourceGroup in $ResourceGroups)
         {
             if ($AzureResourceGroup.Tags.Item($TagIgnoreName) -eq $TagIgnoreValue)
             {
-                Write-Output "Resource Group ($($AzureResourceGroup.ResourceGroupName)) with TAG - Ignore"
+                Write-Output "--> Resource Group ($($AzureResourceGroup.ResourceGroupName)) with TAG - Ignore"
                 $ResourceGroupsToIgnore.Add($AzureResourceGroup.ResourceGroupName) | Out-Null
             }
         }
@@ -106,7 +115,7 @@ foreach ($AzureResource in $AzureResources)
         {
             if ($AzureResource.Tags.Item($TagIgnoreName) -eq $TagIgnoreValue)
             {
-                Write-Output "Resource ($($AzureResource.Name)) with TAG - Ignore"
+                Write-Output "--> Resource ($($AzureResource.ResourceId)) with TAG - Ignore"
                 $AzureResourcesToIgnore.Add($AzureResource.ResourceId) | Out-Null
             }
         }
@@ -114,7 +123,13 @@ foreach ($AzureResource in $AzureResources)
 }
 $AzureResources = @($AzureResources | Where-Object {$_.ResourceId -notin $AzureResourcesToIgnore})
 
-Write-Output ($AzureResources | Select Type, ResourceGroupName, Name | Out-String)
+
+foreach ($AzureResource in $AzureResources)
+{
+    Write-Output ("--> Type ($($AzureResource.Type)) / Res Group ($($AzureResource.ResourceGroupName)) / Name ($($AzureResource.Name))")
+    Write-Verbose "--> ResourceId ($($AzureResource.ResourceId))"
+    Write-Verbose ("")
+}
 
 
 ##########################################################################################################################################################
@@ -134,8 +149,9 @@ foreach ($database in $AzureDatabases)
     $DatabaseName = ($database.Name -split '/')[1]
 
     if ($DatabaseName -eq "master")
-    {        
-        $AzureDatabasesToIgnore += $database
+    {
+        Write-Verbose "DB ($($database.Name)) is master - Ignore"
+        $AzureDatabasesToIgnore += $database.ResourceId
     }
     else
     {
@@ -144,16 +160,14 @@ foreach ($database in $AzureDatabases)
         #Database basic are cheap - Ignore
         if ($databaseObject.SkuName -eq "Basic")
         {
-            Write-Output "DB ($($database.Name)) is Basic - Ignore"
-            $AzureDatabasesToIgnore += $database
+            Write-Output "--> DB ($($database.Name)) is Basic - Ignore"
+            $AzureDatabasesToIgnore += $database.ResourceId
         }
     }
 }
 
-foreach ($database in $AzureDatabasesToIgnore)
-{
-    $AzureResources.Remove($database)
-}
+
+$AzureResources = @($AzureResources | Where-Object {$_.ResourceId -notin $AzureDatabasesToIgnore})
 
 Write-Output "Removed ($($AzureDatabasesToIgnore.Count) / $($AzureDatabases.Count)) databases"
 Write-Output ""
@@ -175,17 +189,52 @@ foreach ($StorageAccount in $AzureStorageAccounts)
     #Storage Account standard are cheap - Ignore
     if ($StorageAccountObject.Sku.Tier -eq "Standard")
     {
-        Write-Output "Storage Account ($($StorageAccountObject.StorageAccountName)) is Standard - Ignore"
-        $AzureStorageAccountsToIgnore += $StorageAccount
+        Write-Output "--> Storage Account ($($StorageAccountObject.StorageAccountName)) is Standard - Ignore"
+        $AzureStorageAccountsToIgnore += $StorageAccount.ResourceId
     }
 }
 
-foreach ($StorageAccount in $AzureStorageAccountsToIgnore)
-{
-    $AzureResources.Remove($StorageAccount)
-}
+$AzureResources = @($AzureResources | Where-Object {$_.ResourceId -notin $AzureStorageAccountsToIgnore})
 
 Write-Output "Removed ($($AzureStorageAccountsToIgnore.Count) / $($AzureStorageAccounts.Count)) storage accounts"
+Write-Output ""
+
+
+##########################################################################################################################################################
+#Get VMs / Remove Dealocatted
+##########################################################################################################################################################
+Write-Output "---------------------------------------------------------------------------------------------------------------"
+Write-Output "Get VMs / Remove Dealocatted"
+Write-Output "---------------------------------------------------------------------------------------------------------------"
+[System.Collections.ArrayList]$AzureVMs = @()
+[System.Collections.ArrayList]$AzureVMsToIgnore = @()
+
+## STILL NEED Resource type regular VM#######
+
+#$AzureVMs = @($AzureResources | Where-Object {$_.Type -eq "Microsoft.SqlVirtualMachine/SqlVirtualMachines"})
+$AzureVMs = @($AzureResources | Where-Object {$_.Type -eq "Microsoft.Compute/virtualMachines"})
+
+foreach ($AzureVM in $AzureVMs)
+{
+    $VMObject = Get-AzVM -ResourceGroupName $AzureVM.ResourceGroupName -Name $AzureVM.Name -Status
+    
+    #Storage Account standard are cheap - Ignore
+    foreach ($VMStatus in $VMObject.Statuses)
+    { 
+        if($VMStatus.Code.CompareTo("PowerState/deallocated") -eq 0)
+        {
+            Write-Output "--> VM ($($AzureVM.Name)) is Dealocatted - Ignore"
+            $AzureVMsToIgnore += $AzureVM
+        }
+    }
+}
+
+foreach ($AzureVM in $AzureVMsToIgnore)
+{
+    $AzureResources.Remove($AzureVM)
+}
+
+Write-Output "Removed ($($AzureVMsToIgnore.Count) / $($AzureVMs.Count)) VMs"
 Write-Output ""
 
 ##########################################################################################################################################################
