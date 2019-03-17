@@ -1,6 +1,6 @@
 ﻿param(
     [Parameter (Mandatory = $true)]
-    [string]$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption",
+    [string]$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
     #SEFONSEC Microsoft Azure Internal Consumption
 )
 
