@@ -1,0 +1,16 @@
+//Errors Query
+AzureDiagnostics
+| where TimeGenerated >= ago(30d) // Last 30 days
+| where Category =~ "Errors"
+| where error_number_d == 8134 //Divide by zero error encountered.
+//| where Message contains "divide" //Or search by text
+| project 
+    TimeGenerated,
+    ResourceGroup,
+    LogicalServerName_s,
+    DatabaseName_s,
+    Message,
+    error_number_d, 
+    Severity,
+    state_d 
+| order by TimeGenerated desc 

@@ -1,0 +1,13 @@
+//Failed Logins
+AzureDiagnostics
+| where TimeGenerated >= ago(5d) //Events on last 5 days
+| where action_name_s == "DATABASE AUTHENTICATION FAILED" 
+| extend additional_information_xml=parse_xml(additional_information_s)
+| extend Error_Code=additional_information_xml.login_information.error_code
+| extend Error_State=additional_information_xml.login_information.error_state
+| project 
+    TimeGenerated, event_time_t,
+    ResourceGroup, LogicalServerName_s, database_name_s,
+    session_id_d, client_ip_s, application_name_s, session_server_principal_name_s,
+    Error_Code, Error_State
+| order by TimeGenerated desc 
