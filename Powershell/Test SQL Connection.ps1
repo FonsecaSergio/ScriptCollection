@@ -21,7 +21,7 @@ Try{
 
     $command.CommandText = "Select getdate() as NOW"
     $result = $command.ExecuteScalar()    
-    Write-Host "Query sucess. Server currenttime ($($result))"
+    Write-Host "Query success. Server currenttime ($($result))"
     
     $connection.Close()
 
