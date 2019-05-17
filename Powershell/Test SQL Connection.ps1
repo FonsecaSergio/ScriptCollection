@@ -9,6 +9,8 @@ $connectionString = "Server=tcp:$DatabaseServer;Initial Catalog=$Database;Persis
 $connection = New-Object -TypeName System.Data.SqlClient.SqlConnection($connectionString)
 $connection.StatisticsEnabled = 1 
 
+Write-Host "CurrentTime: $(((Get-Date).ToUniversalTime()).ToString("yyyy-MM-dd hh:mm:ss")) UTC"
+
 Try{
     $connection.Open()    
     Write-Host "Connection with success ClientConnectionId($($connection.ClientConnectionId)) / Server ($($DatabaseServer)) / DB ($($Database))"
