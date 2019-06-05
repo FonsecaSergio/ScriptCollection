@@ -12,8 +12,9 @@ $connection.StatisticsEnabled = 1
 Write-Host "CurrentTime: $(((Get-Date).ToUniversalTime()).ToString("yyyy-MM-dd hh:mm:ss")) UTC"
 
 Try{
+    Write-Host "Connection to Server ($($DatabaseServer)) / DB ($($Database)) / UserName ($($Username))"
     $connection.Open()    
-    Write-Host "Connection with success ClientConnectionId($($connection.ClientConnectionId)) / Server ($($DatabaseServer)) / DB ($($Database))"
+    Write-Host "Connection with success ClientConnectionId($($connection.ClientConnectionId))"
 
     $command = New-Object -TypeName System.Data.SqlClient.SqlCommand
     $command.CommandTimeout = 60
@@ -43,7 +44,7 @@ Try{
 }
 catch [System.Data.SqlClient.SqlException]
 {
-    $ExceptionMessage = "SQL Exception: ($($_.Exception.Number)) / State: ($($_.Exception.State)) / ClientConnectionId($($connection.ClientConnectionId)) / $($_.Exception.Message)"
+    $ExceptionMessage = "SQL Exception: ($($_.Exception.Number)) / State: ($($_.Exception.State)) / ClientConnectionId($($connection.ClientConnectionId)) / Exception.ClientConnectionId ($($_.Exception.ClientConnectionId)) / $($_.Exception.Message)"
     Write-Error $ExceptionMessage
 }
 Catch
