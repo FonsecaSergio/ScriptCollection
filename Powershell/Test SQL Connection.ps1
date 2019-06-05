@@ -44,13 +44,17 @@ Try{
 }
 catch [System.Data.SqlClient.SqlException]
 {
-    $ExceptionMessage = "SQL Exception: ($($_.Exception.Number)) / State: ($($_.Exception.State)) / ClientConnectionId($($connection.ClientConnectionId)) / Exception.ClientConnectionId ($($_.Exception.ClientConnectionId)) / $($_.Exception.Message)"
+    $ExceptionMessage = "SQL Exception: ($($_.Exception.Number)) / State: ($($_.Exception.State)) / $($_.Exception.Message) / ClientConnectionId($($connection.ClientConnectionId)) / Exception.ClientConnectionId ($($_.Exception.ClientConnectionId))"    
     Write-Error $ExceptionMessage
 }
 Catch
 {
     Write-Error $_.Exception.Message
 }
+
+#################################################
+#GETIP INFORMATION
+#################################################
 
 $MyPublicIP = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 $MyPrivateIP = Get-NetIPAddress | SELECT IPAddress | Sort-Object -Property IPAddress
