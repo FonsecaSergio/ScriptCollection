@@ -5,14 +5,17 @@ $Database = "master"
 $Username = "xxxxxx"
 $Password = "xxxxxx" 
 
-$connectionString = "Server=tcp:$DatabaseServer;Initial Catalog=$Database;Persist Security Info=False;User ID=$Username;Password=$Password;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30"
+#######################################################################################################################################################################################################################################################
+$ConnectionTimeout = 15
+$connectionString = "Server=tcp:$DatabaseServer;Initial Catalog=$Database;Persist Security Info=False;User ID=$Username;Password=$Password;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=$($ConnectionTimeout)"
 $connection = New-Object -TypeName System.Data.SqlClient.SqlConnection($connectionString)
 $connection.StatisticsEnabled = 1 
 
 Write-Host "CurrentTime: $(((Get-Date).ToUniversalTime()).ToString("yyyy-MM-dd hh:mm:ss")) UTC"
+Write-Host "Connection to Server ($($DatabaseServer)) / DB ($($Database)) / UserName ($($Username))"
 
 Try{
-    Write-Host "Connection to Server ($($DatabaseServer)) / DB ($($Database)) / UserName ($($Username))"
+    
     $connection.Open()    
     Write-Host "Connection with success ClientConnectionId($($connection.ClientConnectionId))"
 
@@ -44,17 +47,23 @@ Try{
 }
 catch [System.Data.SqlClient.SqlException]
 {
-    $ExceptionMessage = "SQL Exception: ($($_.Exception.Number)) / State: ($($_.Exception.State)) / $($_.Exception.Message) / ClientConnectionId($($connection.ClientConnectionId)) / Exception.ClientConnectionId ($($_.Exception.ClientConnectionId))"    
+    $_.Exception.Errors[0] | Out-Host
+
+    $ExceptionMessage = "SQL Exception: ($($_.Exception.Number)) / State: ($($_.Exception.State)) / $($_.Exception.Message)"    
     Write-Error $ExceptionMessage
+    Write-Host "ClientConnectionId($($connection.ClientConnectionId))"
+    Write-Host "Exception.ClientConnectionId ($($_.Exception.ClientConnectionId))"
 }
 Catch
 {
     Write-Error $_.Exception.Message
 }
 
-#################################################
-#GETIP INFORMATION
-#################################################
+
+#######################################
+Write-Host "---------------------------------------"
+Write-Host "IP INFORMATION"
+Write-Host "---------------------------------------"
 
 $MyPublicIP = (Invoke-WebRequest -uri "http://ifconfig.me/ip").Content
 $MyPrivateIP = Get-NetIPAddress | SELECT IPAddress | Sort-Object -Property IPAddress
@@ -62,4 +71,4 @@ $MyPrivateIP = Get-NetIPAddress | SELECT IPAddress | Sort-Object -Property IPAdd
 Write-Host "MyPublicIP: $($MyPublicIP)
 "
 Write-Host "MyPrivateIP: "
-$MyPrivateIP
+$MyPrivateIP | Out-Host
