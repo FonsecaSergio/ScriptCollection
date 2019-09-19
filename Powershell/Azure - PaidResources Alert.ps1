@@ -26,7 +26,8 @@ Import-Module Az.Compute
     "Microsoft.Compute/virtualMachines/extensions",
     "Microsoft.SqlVirtualMachine/SqlVirtualMachines",
     "Microsoft.Sql/managedInstances/databases",
-    "Microsoft.Sql/virtualClusters"
+    "Microsoft.Sql/virtualClusters",
+    "Microsoft.KeyVault/vaults"
 )
 
 [string]$TagIgnoreName = "Ignore"
