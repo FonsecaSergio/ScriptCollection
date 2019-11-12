@@ -44,6 +44,8 @@ Try{
     write-Output ("BytesReceived         :  " +$data.BytesReceived)
     write-Output "-------------------------"   
 
+    $connection.ResetStatistics()
+
 }
 catch [System.Data.SqlClient.SqlException]
 {

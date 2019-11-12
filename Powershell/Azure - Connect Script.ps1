@@ -1,6 +1,11 @@
-﻿Connect-AzAccount
+﻿$Context = Get-AzContext
 
-$Subscription = Get-AzSubscription -SubscriptionName "SEFONSEC Microsoft Azure Internal Consumption"
-Set-AzContext $Subscription 
+if($Context -eq $null)
+{
+    Connect-AzAccount
+
+    $Subscription = Get-AzSubscription -SubscriptionName "SEFONSEC Microsoft Azure Internal Consumption"
+    Set-AzContext $Subscription 
+}
 
 
