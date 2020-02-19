@@ -27,7 +27,8 @@ Import-Module Az.Compute
     "Microsoft.SqlVirtualMachine/SqlVirtualMachines",
     "Microsoft.Sql/managedInstances/databases",
     "Microsoft.Sql/virtualClusters",
-    "Microsoft.KeyVault/vaults"
+    "Microsoft.KeyVault/vaults",
+    "Microsoft.DataMigration/services"
 )
 
 [string]$TagIgnoreName = "Ignore"
@@ -156,6 +157,13 @@ foreach ($database in $AzureDatabases)
         if ($databaseObject.SkuName -eq "Basic")
         {
             Write-Host "--> DB ($($database.Name)) is Basic - Ignore" -ForegroundColor Yellow
+            $AzureDatabasesToIgnore += $database.ResourceId
+        }
+
+        #Database S0 are cheap - Ignore
+        if ($databaseObject.SkuName -eq "Standard" -and $databaseObject.CurrentServiceObjectiveName -eq "S0")
+        {
+            Write-Host "--> DB ($($database.Name)) is S0 - Ignore" -ForegroundColor Yellow
             $AzureDatabasesToIgnore += $database.ResourceId
         }
     }

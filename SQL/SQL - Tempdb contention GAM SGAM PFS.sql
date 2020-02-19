@@ -33,3 +33,5 @@ INNER JOIN sys.objects OBJ ON PART.object_id = OBJ.object_id
 
 SELECT database_id, name, compatibility_level, is_mixed_page_allocation_on 
 FROM sys.databases
+
+--http://sqlsoldier.net/wp/sqlserver/breakingdowntempdbcontentionpart2
