@@ -35,3 +35,17 @@ SELECT database_id, name, compatibility_level, is_mixed_page_allocation_on
 FROM sys.databases
 
 --http://sqlsoldier.net/wp/sqlserver/breakingdowntempdbcontentionpart2
+
+
+DECLARE @PAGEID INT = 809547096
+
+SELECT
+	CASE
+		WHEN @PAGEID = 1 OR @PAGEID % 8088 = 0 THEN 'PFS'
+		WHEN @PAGEID = 2 OR @PAGEID % 511232 = 0 THEN 'GAM'
+		WHEN @PAGEID = 3 OR (@PAGEID - 1) % 511232 = 0 THEN 'SGAM'
+		WHEN @PAGEID IS NOT NULL THEN 'Other'
+		ELSE NULL
+	END AS page_type
+
+--https://www.sqlskills.com/blogs/paul/inside-the-storage-engine-gam-sgam-pfs-and-other-allocation-maps/
