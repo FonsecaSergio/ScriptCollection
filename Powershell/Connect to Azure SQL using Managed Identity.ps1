@@ -10,7 +10,7 @@ $content = $response.Content | ConvertFrom-Json
 $AccessToken = $content.access_token
 
 $SqlConnection = New-Object System.Data.SqlClient.SqlConnection
-$SqlConnection.ConnectionString = "Server=tcp:SERVERNAME.database.windows.net,1433;Initial Catalog=sandbox;Persist Security Info=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=5;"
+$SqlConnection.ConnectionString = "Server=tcp:SERVERNAME.database.windows.net,1433;Initial Catalog=sandbox;Persist Security Info=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
 $SqlConnection.AccessToken = $AccessToken
 
 try
