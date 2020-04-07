@@ -1,6 +1,7 @@
-﻿#CREATE USER VMSQLCLient from EXTERNAL PROVIDER
-#ALTER ROLE db_ddladmin ADD MEMBER VMSQLCLient
-#ALTER ROLE db_datareader ADD MEMBER VMSQLCLient
+﻿#CREATE USER [VMSQLCLient] from EXTERNAL PROVIDER
+#ALTER ROLE db_datareader ADD MEMBER [VMSQLCLient]
+#ALTER ROLE db_datawriter ADD MEMBER [VMSQLCLient]
+#GRANT EXECUTE TO [VMSQLCLient]
 
 
 $response = Invoke-WebRequest -Uri 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fdatabase.windows.net%2F' -Method GET -Headers @{Metadata="true"}
@@ -22,11 +23,4 @@ $SqlAdapter.SelectCommand = $SqlCmd
 $DataSet = New-Object System.Data.DataSet
 $SqlAdapter.Fill($DataSet)
 
-$SqlCmd.CommandText = "DROP SCHEMA IF EXISTS XPTO;"
-##$SqlConnection.Open()
-$SqlCmd.ExecuteNonQuery()
-
-$SqlCmd.CommandText = "CREATE SCHEMA XPTO"
-##$SqlConnection.Open()
-$SqlCmd.ExecuteNonQuery()
 $SqlConnection.Close()
