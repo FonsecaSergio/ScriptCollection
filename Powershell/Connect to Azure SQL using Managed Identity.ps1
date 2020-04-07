@@ -18,14 +18,14 @@ try
     $SqlConnection.Open()
 
     $SqlCmd = New-Object System.Data.SqlClient.SqlCommand
-    $SqlCmd.CommandText = "SELECT SERVERNAME = @@SERVERNAME;"
+    $SqlCmd.CommandText = "SELECT SERVERNAME = @@SERVERNAME, SUSER_SNAME = SUSER_SNAME();"
     $SqlCmd.Connection = $SqlConnection
     $SqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter
     $SqlAdapter.SelectCommand = $SqlCmd
     $DataSet = New-Object System.Data.DataSet
     $SqlAdapter.Fill($DataSet) | Out-Null
 
-    Write-Host "Success Connection @@SERVERNAME = $($DataSet.Tables[0].Rows[0].SERVERNAME)" -ForegroundColor Green
+    Write-Host "Success Connection @@SERVERNAME = $($DataSet.Tables[0].Rows[0].SERVERNAME) / SUSER_SNAME = $($DataSet.Tables[0].Rows[0].SUSER_SNAME)" -ForegroundColor Green
 
     $SqlConnection.Close()
 }
