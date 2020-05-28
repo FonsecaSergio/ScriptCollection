@@ -1,5 +1,7 @@
 ﻿Clear-Host
 
+$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
+
 ########################################################################################################
 #CONNECT TO AZURE
 
