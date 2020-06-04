@@ -1,8 +1,9 @@
-﻿#CREATE USER [VMSQLCLient] from EXTERNAL PROVIDER
+﻿#https://techcommunity.microsoft.com/t5/azure-database-support-blog/using-managed-service-identity-msi-to-authenticate-on-azure-sql/ba-p/1288248
+
+#CREATE USER [VMSQLCLient] from EXTERNAL PROVIDER
 #ALTER ROLE db_datareader ADD MEMBER [VMSQLCLient]
 #ALTER ROLE db_datawriter ADD MEMBER [VMSQLCLient]
 #GRANT EXECUTE TO [VMSQLCLient]
-
 
 
 $response = Invoke-WebRequest -Uri 'http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fdatabase.windows.net%2F' -Method GET -Headers @{Metadata="true"}
@@ -31,6 +32,6 @@ try
 }
 catch
 {
-  Write-Host "An error occurred:" -ForegroundColor Red
-  Write-Host $_ -ForegroundColor Red
+    Write-Host "An error occurred:" -ForegroundColor Red
+    Write-Host $_ -ForegroundColor Red
 }

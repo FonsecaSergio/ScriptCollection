@@ -1,27 +1,17 @@
 ﻿Clear-Host
 
-$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
-
-########################################################################################################
-#CONNECT TO AZURE
-
-$Context = Get-AzContext
-if($Context -eq $null)
-{
-    Connect-AzAccount
-}
-$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName
-Set-AzContext $Subscription
-
-Clear-Host
-########################################################################################################
-
 $DatabaseServer = "xxxxxxx.database.windows.net,1433"
 $Database = "master"
 $Username = "xxxxxx"
-$Password = "xxxxxx" 
 
-$Password = (Get-AzKeyVaultSecret -VaultName FonsecanetKeyVault -Name AzureSQLDBPassword).SecretValueText
+if ($Password -eq $null) {
+    $Password = Read-Host "Enter Pass" -AsSecureString
+    $Password = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password))     
+}
+#Remove-Variable Password
+
+#Get from KeyVault
+#$Password = (Get-AzKeyVaultSecret -VaultName FonsecanetKeyVault -Name AzureSQLDBPassword).SecretValueText
 
 
 #######################################################################################################################################################################################################################################################
