@@ -1,3 +1,9 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: ?
+************************************************/
 
 DBCC TRACEON (3604); -- READ DATA PAGES
 --SELECT sys.fn_PhysLocFormatter(%%physloc%%) AS Location,* FROM TABLE_CLUSTER

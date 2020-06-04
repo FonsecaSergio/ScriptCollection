@@ -1,5 +1,9 @@
 ﻿#https://docs.microsoft.com/en-us/sql/linux/quickstart-install-connect-docker?view=sql-server-linux-ver15#pullandrun2019
 
+#NEEED TO UPDATE FROM LAST VERSION
+#https://docs.microsoft.com/en-us/sql/linux/quickstart-install-connect-docker?view=sql-server-ver15&pivots=cs1-powershell
+
+
 ################################################
 #Pull and run the container image
 docker pull mcr.microsoft.com/mssql/server:2019-CTP2.1-ubuntu

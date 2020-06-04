@@ -1,3 +1,10 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: ?
+************************************************/
+
 DROP TABLE PartitionTable
 DROP PARTITION SCHEME myRangePS1
 DROP PARTITION FUNCTION myRangePF1

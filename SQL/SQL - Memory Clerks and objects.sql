@@ -1,3 +1,10 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: ?
+************************************************/
+
 SELECT TOP(5) [type] AS [ClerkType],
 SUM(pages_kb) / 1024 AS [SizeMb]
 FROM sys.dm_os_memory_clerks WITH (NOLOCK)
