@@ -1,7 +1,0 @@
-'QUEBRA TEXTO SEPARADO POR VIRGULA
-Dim ARRAY 
-ARRAY = Split( DTSSource("strCustomInfo") , ",")
-'-----------------------------------------------------------------------------------------------------
-	DTSDestination("DT") 		= ARRAY(0)
-	DTSDestination("idTipoTurno")	= ARRAY(1)
-'-----------------------------------------------------------------------------------------------------

@@ -1,9 +1,0 @@
-Function Coalesce ( Value, Default )
-	
-	If IsNull ( Value ) Then
-		Value = Default
-	End IF
-	
-	Coalesce = Value
-
-End Function
