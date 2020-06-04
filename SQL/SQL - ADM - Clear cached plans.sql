@@ -1,13 +1,13 @@
-http://www.sqlskills.com/blogs/kimberly/plan-cache-adhoc-workloads-and-clearing-the-single-use-plan-cache-bloat/
+--http://www.sqlskills.com/blogs/kimberly/plan-cache-adhoc-workloads-and-clearing-the-single-use-plan-cache-bloat/
 
 --------------------------------------------------------------------------------------------------------------
 --Clear only SQL Plans
 DBCC FREESYSTEMCACHE('SQL Plans')
 --------------------------------------------------------------------------------------------------------------
-If you want to clear all of the cache, you can use:
+--If you want to clear all of the cache, you can use:
 DBCC FREEPROCCACHE
 --------------------------------------------------------------------------------------------------------------
-1. Clearing *JUST* the 'SQL Plans' based on *just* the amount of Adhoc/Prepared single-use plans (2005/2008):
+--1. Clearing *JUST* the 'SQL Plans' based on *just* the amount of Adhoc/Prepared single-use plans (2005/2008):
 
 
 DECLARE @MB decimal(19,3)
@@ -28,13 +28,13 @@ IF @MB > 10
         END
 ELSE
         BEGIN
-                RAISERROR ('Only %s MB is allocated to single-use plan cache – no need to clear cache now.', 10, 1, @StrMB)
-                – Note: this is only a warning message and not an actual error.
+                RAISERROR ('Only %s MB is allocated to single-use plan cache ï¿½ no need to clear cache now.', 10, 1, @StrMB)
+                ï¿½ Note: this is only a warning message and not an actual error.
         END
 go
 
 --------------------------------------------------------------------------------------------------------------
-2. Clearing *ALL* of your cache based on the total amount of wasted by single-use plans (2005/2008):
+--2. Clearing *ALL* of your cache based on the total amount of wasted by single-use plans (2005/2008):
 
 
 DECLARE @MB decimal(19,3)
@@ -50,6 +50,6 @@ FROM sys.dm_exec_cached_plans
 IF @MB > 1000
         DBCC FREEPROCCACHE
 ELSE
-        RAISERROR ('Only %s MB is allocated to single-use plan cache – no need to clear cache now.', 10, 1, @StrMB)
+        RAISERROR ('Only %s MB is allocated to single-use plan cache ï¿½ no need to clear cache now.', 10, 1, @StrMB)
 go
 --------------------------------------------------------------------------------------------------------------
