@@ -1,3 +1,10 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: ?
+************************************************/
+
 CREATE TABLE #DBInfo (
        Id INT IDENTITY(1,1), 
        ParentObject VARCHAR(255),

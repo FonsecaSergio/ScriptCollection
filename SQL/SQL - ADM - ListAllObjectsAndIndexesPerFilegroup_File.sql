@@ -1,3 +1,10 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: ?
+************************************************/
+
 SELECT OBJ.type_desc AS ObjectType       
       ,SCH.name AS SchemaName 
       ,OBJ.name AS ObjectName 

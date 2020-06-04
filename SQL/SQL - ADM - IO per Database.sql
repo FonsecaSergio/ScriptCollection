@@ -1,3 +1,10 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: ?
+************************************************/
+
 SELECT
     --virtual file latency
     [ReadLatency] =

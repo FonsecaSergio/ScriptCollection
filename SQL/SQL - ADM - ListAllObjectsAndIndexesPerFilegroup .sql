@@ -1,3 +1,10 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: ?
+************************************************/
+
 -- List all Objects and Indexes
 -- per Filegroup / Partition and Allocation Type
 -- including the allocated data size

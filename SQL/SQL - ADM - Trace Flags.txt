@@ -1,0 +1,421 @@
+Flag 	Trace Flag Description (underlined are sp_configure’able) 
+-1 	Sets trace flags for all connections. 
+105 	SQL 6.5 – To over ride limitation of max 16 tables or sub queries allowed in a single select statement. 
+106 	SQL 6.5/7 – Disables line number information for syntax errors. 
+107 	SQL 6.5/7/8 – Interprets numbers with a decimal point as float instead of decimal. KB 203787 
+110 	SQL 6.5 – Turns off ANSI select characteristics. KB 152032 
+
+146 	Consider using when replaying against SQL 8.0, to avoid an attempt to set an encrypted connection. 
+168 	SQL 9/10 – On querying through a view that uses the ORDER BY clause, the result are still returned in random order. KB 926292 
+204 	SQL 6.5 – Backward compatibility switch that enables non-ansi standard behavior. E.g. previously SQL server ignored trailing blanks in the like statement and allowed queries that contained aggregated functions to have items in the group by clause that were not in the select list. 
+205 	SQL 7/8 – Report when a statistics-dependent stored procedure is being recompiled as a result of AutoStat. KB 195565 
+
+206 	SQL 6.5 – Provides backward compatibility for the set user statement. KB 160732 
+208 	SET QUOTED IDENTIFIER ON. 
+210 	SQL 9 – Error when you run a query against a view: "An error occurred while executing batch". KB 945892 
+
+212 	SQL 9 – Query may run much slower when compared to SQL 8 when you use a cursor to run the query. KB 951184 
+237 	Tells SQL Server to use correlated sub-queries in Non-ANSI standard backward compatibility mode. 
+242 	Provides backward compatibility for correlated subqueries where non-ANSI-standard results are desired. 
+243 	Provides backward compatibility for nullability behavior. When set, SQL Server has the same nullability violation behavior as that of a ver 4.2: 
+•	Processing of the entire batch is terminated if the nullability error (inserting NULL into a NOT NULL field) can be detected at compile time. 
+•	Processing of offending row is skipped, but the command continues if the nullability violation is detected at run time. 
+Behavior of SQL Server is now more consistent because nullability checks are made at run time and a nullability violation results in the command terminating and the batch or transaction process continuing. 
+244 	Disables checking for allowed interim constraint violations. By default, SQL Server checks for and allows interim constraint violations. An interim constraint violation is caused by a change that removes the violation such that the constraint is met, all within a single statement and transaction. SQL Server checks for interim constraint violations for self-referencing DELETE statements, INSERT, and multi-row UPDATE statements. This checking requires more work tables. With this trace flag you can disallow interim constraint violations, thus requiring fewer work tables. 
+246 	Derived or NULL columns must be explicitly named in a select…INTO or create view statement when not done they raise an error. This flag avoids that. 
+253 	Prevents ad-hoc query plans to stay in cache. 
+257 	Will invoke a print algorithm on the XML output before returning it to make the XML result more readable. 
+260 	Prints versioning information about extended stored procedure dynamic-link libraries (DLLs). For more information about __GetXpVersion(), see Creating Extended Stored Procedures. Scope: global or session 
+
+262 	SQL 7 – Trailing spaces are no longer truncated from literal strings in CASE statements.       KB 891116 
+302 	Should be used with 310 to show the actual join ordering. Prints information about whether the statistics page is used, the actual selectivity (if available), and what SQL Server estimated the physical and logical I/O would be for the indexes. 
+310 	Prints information about join order. Index selection information is also available in a more readable format using SET SHOWPLAN_ALL, as described in the SET statement. 
+320 	Disables join-order heuristics used in ANSI joins. To see join-order heuristics use flag 310. SQL Server uses join-order heuristics to reduce the no’ of permutations when using the best join order. 
+323 	SQL 6.5 – Reports on the use of update statements using UPDATE in place. Shows a detailed description of the various update methods used. 
+325 	Prints information about the cost of using a non-clustered index or a sort to process an ORDER BY clause. 
+326 	Prints information about estimated & actual costs of sorts. Instructs server to use arithmetic averaging when calculating density instead of a geometric weighted average when updating statistics. Useful for building better stats when an index has skew on the leading column. Use only for updating the stats of a table/index with known skewed data. 
+330 	Enables full output when using the SET SHOWPLAN_ALL option, which gives detailed information about joins. 
+342 	Disables the costing of pseudo-merge joins, thus significantly reducing time spent on the parse for certain types of large, multi-table joins. One can also use SET FORCEPLAN ON to disable the costing of pseudo-merge joins because the query is forced to use the order specified in the FROM clause. 
+345 	Increase the accuracy of choice of optimum order when you join 6 or more tables. 
+506 	Enforces SQL-92 standards regarding null values for comparisons between variables and parameters. Any comparison of variables and parameters that contain a NULL always results in a NULL. 
+610 	SQL 10 – Enable the potential for minimal-logging when: 
+•	Bulk loading into an empty clustered index, with no nonclustered indexes 
+•	Bulk loading into a non-empty heap, with no nonclustered indexes 
+611 	SQL 9 – When turned on, each lock escalation is recorded in the error log along with the SQL Server handle number. 
+652 	Disables read ahead for the server. 
+653 	Disables read ahead for the current connection. 
+661 	Disables the ghost record removal process. A ghost record is the result of a delete operation. When you delete a record, the deleted record is kept as a ghost record. Later, the deleted record is purged by the ghost record removal process. When you disable this process, the deleted record is not purged. Therefore, the space that the deleted record consumes is not freed. This behavior affects space consumption and the performance of scan operations. SCOPE: Global. If you turn off this trace flag, the ghost record removal process works correctly. KB 920093 
+698 	SQL 9 – Performance of INSERT operations against a table with an identity column may be slow when compared to SQL 8. KB 940545 
+
+699 	Turn off transaction logging for the entire SQL dataserver. 
+806 	Cause 'DBCC-style' page auditing to be performed whenever a database page is read into the buffer pool. This is useful to catch cases where pages are being corrupted in memory and then written out to disk with a new page checksum. When they're read back in the checksum will look correct, but the page is corrupt (because of the previous memory corruption). This page auditing goes someway to catching this - especially on non-Enterprise Edition systems that don't have the 'checksum sniffer'. 
+809 	SQL 8 – Limits the amount of Lazy write activity. 
+815 	SQL 8/9 – Enables latch enforcement. SQL Server 8 (with service pack 4) and SQL Server 9 can perform latch enforcement for data pages found in the buffer pool cache. Latch enforcement changes the virtual memory protection state while database page status changes from "clean" to "dirty" ("dirty" means modified through INSERT, UPDATE or DELETE operation). If an attempt is made to modify a data page while latch enforcement is set, it causes an exception and creates a mini-dump in SQL Server installation's LOG directory. Microsoft support can examine the contents of such mini-dump to determine the cause of the exception. In order to modify the data page the connection must first acquire a modification latch. Once the data modification latch is acquired the page protection is changed to read-write. Once the modification latch is released the page protection changes back to read-only. 
+818 	SQL 8 - Enables in memory ring buffer used to track last 2048 successful write operations. 
+828 	SQL 8 - When enabled checkpoint ignores the recovery interval target and keeps steady I/O otherwise it uses recovery interval setting as a target for the length of time that checkpoint will take – KB 906121. 
+830 	SQL 9 – Disable the reporting of CPU Drift errors in the SQL Server errorlog like SQL Server has encountered 2 occurrence(s) of I/O requests taking longer than 15 seconds to complete 
+831 	Protect unchanged pages in the buffer pool to catch memory corruptions. 
+834 	SQL 8+ – Causes SQL Server to use Windows large-page allocations for the memory that is allocated for the buffer pool. The page size varies depending on the hardware platform, but the page size may be from 2 MB to 16 MB. Large pages are allocated at startup and are kept throughout the lifetime of the process. Trace flag 834 improves performance by increasing the efficiency of the translation look-aside buffer (TLB) in the CPU. Applies only to 64-bit versions & you should have the Lock pages in memory right granted to turn this on. It may prevent the server from starting if memory is fragmented and large pages cannot be allocated. Therefore its better suited dedicated hosts. Scope STARTUP. 
+Details - http://msdn2.microsoft.com/en-us/library/aa366720.aspx / http://support.microsoft.com/kb/920093 
+
+835 	SQL 9 / 10 – On 64 bit SQL Server it turns off Lock pages in memory. 
+836 	Causes SQL Server to size the buffer pool at startup based on the value of the max server mem option instead of based on the total physical memory. You can use trace flag 836 to reduce the number of buffer descriptors that are allocated at startup in 32-bit AWE mode. Scope Startup. 
+840 	SQL 9 – When trace turned on, SQL Server can perform larger I/O extent reads to populate the buffer pool when SQL Server starts this populates the buffer pool faster. Additionally, the larger I/O extent reads improve the initial query compilation and the response time when SQL Server starts. KB 912322 
+842 	Use sys.dm_os_memory_node_access_stats to verify local vs. foreign memory under NUMA configurations after turning on this flag. 
+845 	SQL 9 / 10 - On 64 bit SQL Server non ENT. This turns on Lock pages in memory.  Startup time of SQL Server takes longer because SQL Server allocates all memory up to the Max Server Memory setting. Scope Startup KB 970070. 
+
+902 	SQL server may not start after (un) install of updates. When sql server holds at the script upgrade mode. KB 2163980. Mode examples details at 
+http://social.technet.microsoft.com/wiki/contents/articles/2973.microsoft-sql-server-2008-r2-sp1-release-notes.aspx?Sort=MostUseful&PageIndex=1 
+& 
+http://blogs.msdn.com/b/karthick_pk/archive/2010/11/18/sqlserver2008-script-level-upgrade-for-database-master-failed-because-upgrade-step-sqlagent100-msdb-upgrade-sql-encountered-error-574-state-0-severity-16.aspx 
+
+1106 	SQL 9 - Used space in tempdb increases continuously when you run a query that creates internal objects in tempdb. KB 947204. 
+1117 	Grows all data files at once, else it goes in turns. 
+1118 	Switches allocations in tempDB from 1pg at a time (for first 8 pages) to one extent. There is now a cache of temp tables. When a new temp table is created on a cold system it uses the same mechanism as for SQL 8. When it is dropped though, instead of all the pages being deallocated completely, one IAM page & one data page are left allocated, then the temp table is put into a special cache. Subsequent temp table creations will look in the cache to see if they can just grab a pre-created temp table. If so, this avoids accessing the allocation bitmaps completely. The temp table cache isn't huge (32 tables), but this can still lead to a big drop in latch contention in tempdb. http://www.sqlskills.com/BLOGS/PAUL/post/Misconceptions-around-TF-1118.aspx 
+
+1119 	Turns off mixed extent allocation. 
+1140 	Continuous tempdb growth after upgrading SQL 2005 pre-SP2 to SP3/SP4 or to SQL 2008 or newer
+KB Article:http://support.microsoft.com/kb/2000471
+First Added: SQL 2005 SP2 build 3166
+Versions: SQL 2005 SP3+, SQL 2008, SQL 2008 R2, SQL 2012 
+1180 	SQL 7 - Forces allocation to use free pages for text or image data and maintain efficiency of storage. 1197 applies only in the case of SQL 7 – SP3. Helpful in case when DBCC SHRINKFILE and SHRINKDATABASE commands may not work because of sparsely populated text, ntext, or image columns 
+1197 	
+1200 	Prints detailed lock information as every request for a lock is made (the process ID and type of lock requested). 
+1202 	Insert blocked lock requests into syslocks. 
+1204 	Returns resources and types of locks participating in a deadlock and command affected. Scope: global 
+1205 	More detailed information about the command being executed at the time of a deadlock. Documented in SQL 7 BOL. 
+1206 	Used to complement flag 1204 by displaying other locks held by deadlock parties. 
+1211 	Disables lock escalation based on memory pressure, or based on number of locks. The SQL Server Database Engine will not escalate row or page locks to table locks. 
+Using this trace flag can generate excessive numbers of locks. This can slow the performance of the Database Engine, or cause 1204 errors (unable to allocate lock resource) because of insufficient memory. For more information, see Lock Escalation (Database Engine). 
+If both trace flag 1211 and 1224 are set, 1211 takes precedence over 1224. However, because trace flag 1211 prevents escalation in every case, even under memory pressure, we recommend that you use 1224. This helps avoid "out-of-locks" errors when many locks are being used. Scope: global or session 
+1216 	SQL 7 - Disables Health reporting. Lock monitor when detects a (worker thread) resource level blocking scenario. If a SPID that owns a lock is currently queued to the scheduler, because all the assigned worker threads have been created and all the assigned worker threads are in an un-resolvable wait state, the following error message is written to the SQL Server error log: 
+Error 1223: Process ID %d:%d cannot acquire lock "%s" on resource %s because a potential deadlock exists on Scheduler %d for the resource. Process ID %d:% d holds a lock "%h" on this resource. 
+1222 	Returns the resources & types of locks that are participating in a deadlock and also the current command affected, in an XML format that does not comply with any XSD schema. Scope: global 
+1224 	Disables lock escalation based on the number of locks. However, memory pressure can still activate lock escalation (when > 40%). The Database Engine escalates row or page locks to table (or partition) locks if the amount of memory used by lock objects exceeds one of the following conditions: 
+•	40% of the memory that is used by Db Engine, exclusive of memory allocation using AWE. This is applicable when the locks parameter of sp_configure is set to 0. 
+•	Forty percent of the lock memory that is configured by using the locks parameter of sp_configure. 
+If both trace flag 1211 & 1224 are set, 1211 takes precedence. However, because trace flag 1211 prevents escalation in every case, even under memory pressure, it’s recommend to use 1224 which helps avoid "out-of-locks" errors when many locks are being used. 
+Note: Lock escalation to the table- or HoBT-level granularity can also be controlled by using the LOCK_ESCALATION option of the ALTER TABLE statement.  Scope: global / session 
+
+1261 	SQL 8 - Disables Health reporting. Lock monitor when detects a (worker thread) resource level blocking scenario. If a SPID that owns a lock is currently queued to the scheduler, because all the assigned worker threads have been created and all the assigned worker threads are in an un-resolvable wait state, the following error message is written to the SQL Server error log: Error 1229: Process ID %d:%d owns resources that are blocking processes on scheduler %d. 
+1400 	SQL 9 RTM – Enables creation of database mirroring endpoint, which is required for setting up and using database mirroring. Scope: startup 
+1448 	SQL 9/10 - When the principal database is running exposed or is isolated the Log Reader Agent will waits for log records to harden on the mirror before replicating them to the Distributor. When publisher is started with trace flag 1448, the Log Reader Agent can continue replicating changes regardless of the mirroring state. Scope – GLOBAL. KB 937041 
+1449 	When you use SNAC to connect to an instance of a principal server in a database mirroring session: "The connection attempted to fail over to a server that does not have a failover partner". KB 936179 
+1462 	SQL 10 - Turns off log stream compression and effectively reverts the behavior back to ver 9. 
+1603 	Use standard disk I/O (i.e. turn off asynchronous I/O). 
+1604 	Once enabled at start up makes SQL Server output information regarding memory allocation requests. 
+1609 	Turns on the unpacking and checking of RPC information in Open Data Services. Used only when applications depend on the old behavior. 
+1610 	Boot the SQL dataserver with TCP_NODELAY enabled. 
+1611 	If possible, pin shared memory -- check errorlog for success/failure. 
+1613 	Set affinity of the SQL data server engine's onto particular CPUs -- usually pins engine 0 to processor 0, engine 1 to processor 1... 
+1704 	Prints information when a temporary table is created or dropped. 
+1717 	Causes new objects being created to be system objects. 
+1802 	SQL 9 - After detaching a database that resides on network-attached storage, you cannot reattach the SQL Server database. Scope: STARTUP – KB 922804 
+1806 	Disables instant file initialization. 
+1807 	SQL 9/10 - Allows creating a database file on a mapped or UNC network location. Not required with SQL 2008 R2. 
+1903 	SQL 8 - When you capture a SQL Profiler trace in a file and then you try to import the trace files into tables by using the fn_trace_gettable function no rows may be returned. KB 911678 
+
+1905 	
+2301 	Makes your optimizer work harder by enabling advanced optimizations that are specific to decision support queries, applies to processing of large data sets. 
+2328 	SQL 9+ - Makes cardinality estimates upon resulting selectivity.  The reasoning for this is that one or more of the constants may be statement parameters, which would change from one execution of the statement to the next. 
+2330 	Stops the collection of statistics for sys.db_index_usage_stats. 
+2335 	SQL 9+ Amount of memory available to SQL Server affects the execution plan generated though SQL Server generates the most optimal plan based on this value, but occasionally it may generate an inefficient plan for a specific query when you configure a large value for max server memory. Using 2335 as a startup parameter will cause SQL Server to generate a plan that is more conservative in terms of memory consumption when executing the query. It does not limit how much memory SQL Server can use. The memory configured for SQL Server will still be used by data cache, query execution & other consumers. KB 2413549. 
+2340 	SQL 9/10 - Query processor may introduce a sort operation for optimization, though not required where the particular plan only touches a smaller number of rows. Setup cost for the sort operation may outweigh its benefits thus resulting in poor performance. KB 2009160 
+
+2371 	SQL 10.5 SP1 – Before this automatic statistics were triggered when a column would get modifications exceeding 20% of the # of rows in the table. On enabling this flag the standard 20% changes to a dynamic value if table has more than 25000 rows & reduces as the count increases. 
+2382 	SQL 8 - Statistics collected for system tables. 
+2388 	SQL 9 - Detect when the leading column of a statistics object is ascending and mark or brand it as ascending. Statistics object that belong to an ascending column is branded as “ascending” after three updates on the statistics. It’s necessary to update it with ascending column values so that when the third update occurs, SQL Server brands the statistics object as ascending. Flag 2388 helps to check the statistics’ brand, when turned on the result of the DBCC SHOW_STATISTICS, has an additional column called Leading column type with the brand of the column. 
+2389 	SQL 9 - Tracks nature of columns by subsequent statistics updates. When SQL Server determines that the statistics increase three times, the column is branded ascending. The statistics will be updated automatically at query compile. 
+2390 	SQL 9 - Does the same like 2389 even if ascending nature of the column is not known and -- never enable without 2389. 
+2440 	SQL 10 - Parallel query execution strategy on partitioned tables. SQL 9 used single thread per partition parallel query execution strategy. In SQL 10, multiple threads can be allocated to a single partition by turning on this flag. 
+2470 	Slow performance when an AFTER trigger runs on a partitioned table in SQL Server 2008 R2 or in SQL Server 2012
+KB Article:http://support.microsoft.com/kb/2606883
+First Added: SQL 2008 R2 SP1 CU3 or SQL 2012 CU1
+Versions: SQL 2008 R2, SQL 2012 
+2505 	SQL 7 - Prevents DBCC TRACEON 208, SPID 10 errors from appearing in the error log. KB 243352 
+
+2508 	Disables parallel non-clustered index checking for DBCC CHECKTABLE. 
+2509 	Used with DBCC CHECKTABLE to see the total count of forward records in a table 
+2514 	Used with DBCC CHECKTABLE to see the total count of ghost records in a table 
+2520 	Forces DBCC HELP to return syntax of undocumented DBCC statements. If 2520 is not turned on, DBCC HELP will refuse to give you the syntax stating: "No help available for DBCC statement 'undocumented statement'". dbcc help ('?') 
+2521 	SQL 7 SP2 - Facilitates capturing a Sqlservr.exe user-mode crash dump for postmortem analysis. 
+2528 	SQL 8+ Disables parallel checking of objects by DBCC CHECKDB, CHECKFILEGROUP and CHECKTABLE. By default, the degree of parallelism is automatically determined by the query processor. The maximum degree of parallelism is configured just like that of parallel queries. For more information, see max degree of parallelism Option. 
+Parallel DBCC should typically be left enabled. For DBCC CHECKDB, the query processor reevaluates and automatically adjusts parallelism with each table or batch of tables checked. Sometimes, checking may start when the server is almost idle. An administrator who knows that the load will increase before checking is complete may want to manually decrease or disable parallelism. Disabling parallel checking of DBCC can cause it to take much longer to complete and if DBCC is run with the TABLOCK feature enabled and parallelism set off, tables may be locked for longer periods of time. http://msdn.microsoft.com/en-us/library/ms176064.aspx Scope: global / session 
+
+2537 	SQL 9/10 - Allows function ::fn_dblog to look inside all logs (not just the active log). 
+2542 	SQL 8 - Used with Sqldumper.exe to get certain dumps. In range 254x – 255x. 
+2544 	Creates a full memory dump. 
+2546 	All threads in SQL Server process are dumped (mini dump). 
+2549 	SQL 10.5 – DBCC CHECKDB builds an internal list of pages to read per unique disk drive across all database files. This logic determines unique disk drives based on the drive letter of the physical file name of each file. If the underlying disks are actually unique when the drive letters or not, the DBCC CHECKDB command would treat these as one disk. When this trace flag is enabled, each database file is assumed to be on a unique disk drive. Do not use this trace flag unless you know that each file is based on a unique physical disk. KB 2634571, Scope – Any 
+2551 	SQL 9 – Creates a full filtered dump which is additional information for the dump file. 
+2562 	SQL 10.5 – As an effect the space requirements for tempdb may increase as much as 5% or more of the user database that is being processed. Therefore, it’s recommend to pre-size tempdb to at least 5% of scanned database. 
+When enabled it runs the DBCC CHECKDB command in a single "batch" regardless of the number of indexes in the database. By default, the DBCC CHECKDB command tries to minimize tempdb resources by limiting the number of indexes or "facts" that it generates by using a "batches" concept. This trace flag forces all processing into one batch. 
+This flag improves the internal processing for determining which pages to read from the database. This reduces the contention on the DBCC_MULTIOBJECT_SCANNER latch. KB 2634571, Scope – Any 
+2566 	SQL 9 - DBCC CHECKDB takes longer to run on an x64-based computer compared to a 32-bit computer. Kb - 945770 
+2701 	SQL 6.5 - Sets the @@ERROR system function to 50000 for RAISERROR messages with severity levels of 10 or less. When disabled, sets the @@ERROR system function to 0 for RAISERROR messages with severity levels of 10 or less. 
+2861 	SQL 8 - Cache query plans for queries that have a cost of zero or near to zero. When turned on, fn_get_sql function can return the SQL text for activities that have zero cost plans kb 325607 Tip: Avoid Using Trace Flag 2861 to Cache Zero-Cost Query Plans http://www.microsoft.com/technet/abouttn/subscriptions/flash/tips/tips_042705.mspx 
+
+3001 	Stops sending backup entries into MSDB. 
+3004 	Shows information about backups and file creations use with 3605 to direct to error log. 
+http://blogs.msdn.com/b/psssql/archive/2008/01/23/how-it-works-what-is-restore-backup-doing.aspx 
+http://blogs.msdn.com/b/sql_pfe_blog/archive/2009/12/23/how-and-why-to-enable-instant-file-initialization.aspx 
+
+3014 	Provides more information related backups / file streams. http://blogs.msdn.com/b/psssql/archive/2008/02/06/how-it-works-how-does-sql-server-backup-and-restore-select-transfer-sizes.aspx 
+
+3023 	How to enable the CHECKSUM option if backup utilities do not expose the option
+KB Article:http://support.microsoft.com/kb/2656988
+First Added: SQL 2005
+Versions: SQL 2005, SQL 2008, SQL 2008 R2, SQL 2012 
+3028 	
+3031 	SQL 9 - Will turn the NO_LOG and TRUNCATE_ONLY options into checkpoints in all recovery modes. Read more: http://www.sqlskills.com/BLOGS/KIMBERLY/category/Transaction-Log.aspx#ixzz1VYfrEdbS 
+
+3042 	SQL 10+ Prevents pre-allocation of space while running compressed backups. kb2001026 
+3104 	Causes SQL Server to bypass checking for free space. 
+3101 	Slow performance when you restore a database in SQL Server 2008 R2, in SQL Server 2008 or in SQL Server 2012 if CDC is enabled
+KB Article:http://support.microsoft.com/kb/2567366
+First Added: SQL 2008 SP3 CU5, SQL 2008 R2 CU10, SQL 2012 CU2
+Versions: SQL 2008+ 
+3106 	Required to move sys databases. 
+3111 	Cause LogMgr::ValidateBackedupBlock to be skipped during backup and restore operations. 
+3117 	SQL 9 - SQL Server 2005 tries to restore the log files and the data files in a single step which some third-party snapshot backup utilities do not support. Turing on 3117 does things the SQL 8 way multiple-step restore process. KB 915385 
+•	Restore the file or the file group from the full database backup. The database remains in a restoring state. 
+•	Restore the transaction log or logs from the log backup chain. 
+3205 	If a tape drive supports hardware compression, either the DUMP or BACKUP statement uses it. With this trace flag, you can disable hardware compression for tape drivers. This is useful when you want to exchange tapes with other sites or tape drives that do not support compression. Scope: global / session 
+3213 	Trace SQL Server activity during backup process so that we will come to know which part of backup process is taking more time. 
+http://blogs.msdn.com/b/psssql/archive/2008/02/06/how-it-works-how-does-sql-server-backup-and-restore-select-transfer-sizes.aspx 
+
+3222 	Disables the read ahead that is used by the recovery operation during roll forward operations. 
+
+3226 	Suppress BACKUP COMPLETED log entries going to WIN and SQL logs. Scope: global 
+3228 	
+3231 	SQL 8/9 - Will turn the NO_LOG and TRUNCATE_ONLY options into no-ops in FULL/BULK_LOGGED recovery mode, and will clear the log in SIMPLE recovery mode. When set, BACKUP LOG with TRUNCATE_ONLY and BACKUP LOG with NO_LOG do not allow a log backup to run if the database's recovery model is FULL or BULK_LOGGED. Read more: http://www.sqlskills.com/BLOGS/KIMBERLY/category/Transaction-Log.aspx#ixzz1VYfbCw00 
+
+3282 	SQL 6.5 - Used after backup restoration fails. KB Q215458 
+3422 	Cause auditing of transaction log records as they're read (during transaction rollback or log recovery). This is useful because there is no equivalent to page checksums for transaction log records and so no way to detect whether log records are being corrupted e careful with these trace flags - I don't recommend using them unless you are experiencing corruptions that you can't diagnose. Turning them on will cause a big CPU hit because of the extra auditing that's happening. 
+3502 	Tracks CHECKPOINT - Prints a message to the log at the start and end of each checkpoint. 
+3503 	Indicates whether the checkpoint at the end of automatic recovery was skipped for a database (this applies only to read-only databases). 
+
+3504 	For internal testing. Will raise a bogus log-out-of-space condition from checkpoint() 
+3505 	Disables automatic checkpoints. May increase recovery time and can prevent log space reuse until the next checkpoint is issued. Make sure to issue manual checkpoints on all read/write databases at appropriate time intervals. Note does not prevent the internal checkpoints that are issued by certain commands, such as BACKUP. 
+3601 	Stack trace when error raised. Also see 3603 
+3602 	Records all error and warning messages sent to the client. 
+3603 	SQL Server fails to install on tricore, Bypass SMT check is enabled, flags are added via registry. Also see 3601. 
+3604 	Sends trace output to the client. Used only when setting trace flags with DBCC TRACEON and DBCC TRACEOFF. 
+3605 	Sends trace output to the error log.  (if SQL Server is started from CMD output also appears on the screen) 
+3607 	SQL 7+ Skips the recovery of databases on the startup of SQL Server and clears the TempDB. Setting this flag lets you get past certain crashes, but there is a chance that some data will be lost 
+3608 	SQL 7+ Prevents Instance from automatically starting-recovering any database except master. Databases will be started and recovered when accessed. Some features, such as snapshot isolation and read committed snapshot, might not work. 
+Works when SQL Server is started as an application. 
+3609 	Skips the creation of the tempdb database at startup. Use this trace flag if the device or devices on which tempdb resides are problematic or problems exist in the model database. 
+3610 	SQL 9 - Divide by zero to result in NULL instead of error. 
+3625 	Limits the amount of information returned in error messages. For more information, see Metadata Visibility Configuration. Scope: global. 
+
+3626 	Turns on tracking of the CPU data for the sysprocesses table. 
+3635 	Print diagnostic information. Trace Flag 3635 Diagnostics are written to the console that started it. There are not written to the errorlog, even if 3605 is turned on. 
+3640 	Eliminates sending DONE_IN_PROC messages to client for each statement in stored procedure. This is similar to the session setting of SET NOCOUNT ON, but when set as a trace flag, every client session is handled this way. 
+3654 	Allocations to stack. 
+3659 	
+3688 	SQL 9+, Avoids messages with ID 19030 and message ID 19031 are logged in the Errorlog when many traces are started & stopped. KB 922578. Scope: global. 
+3689 	Logs extended errors to errorlog when network disconnect occurs, turned off by default. Will dump out the socket error code this can sometimes give you a clue as to the root cause. 
+3913 	SQL 7/8 - SQL Server does not update the rowcnt column of the sysindexes system table until the transaction is committed. When turned on the optimizer gets row count information from in-memory metadata that is saved to sysindexes system table when the transaction commits. 
+4001 	Very verbose logging of each login attempt to the error log. Includes tons of information. 
+4010 	Allows only shared memory connections to the SQL Server. Meaning, you will only be able to connect from the server machine itself. Client connections over TCP/IP or named pipes will not happen. 
+4013 	Writes an entry to error log when a new connection is established. For each connection that occurs, the trace flag writes two entries that look like: 
+Login: sa saSQL Query Analyzer(local)ODBCmaster, server process ID (SPID): 57, kernel process ID (KPID): 57.
+Login: sa XANADUsaSQL Query Analyzer(local)ODBCmaster, server process ID (SPID): 57, kernel process ID (KPID): 57. 
+4020 	Boot without recover. 
+4022 	Used to bypass automatically started (startup) procedures, this is a subset of startup option –f. TIP: Each SP consumes one worker thread while executing so you may prefer to make one startup procedure that calls others. 
+4029 	Logs extended errors to errorlog when network disconnect occurs, turned off by default. Will dump out the socket error code this can sometimes give you a clue as to the root cause. 
+4030 	Prints both a byte and ASCII representation of the receive buffer. Used when you want to see what queries a client is sending to SQL Server. You can use this trace flag if you experience a protection violation and want to determine which statement caused it. Typically, you can set this flag globally or use SQL Server Enterprise Manager. You can also use DBCC INPUTBUFFER. 
+4031 	Prints both a byte and ASCII representation of the send buffers (what SQL Server sends back to the client). You can also use DBCC OUTPUTBUFFER. 
+4032 	Traces the SQL commands coming in from the client. When enabled with 3605 it will direct those all to the error log. 
+4044 	SA account can be unlocked by rebooting server with trace flag. If sa (or sso_role) password is lost, add this to your RUN_serverfile. This will generate new password when server started. 
+4052 	SQL 9+ Prints TDS packets sent to the client (output) to console.– Startup only. 
+4055 	SQL 9+ Prints TDS packets received from the client to console.– Startup only. 
+4102 	SQL 9 - Query performance is slow if the execution plan of the query contains semi join operators Typically, semi join operators are generated when the query contains the IN keyword or the EXISTS keyword. Enable flag 4102 and 4118 to overcome this. KB – 940128 
+4103 	
+4104 	SQL 9 - Overestimating cardinality of JOIN operator. When additional join predicates are involved, this problem may increase the estimated cost of the JOIN operator to the point where the query optimizer chooses a different join order. When the query optimizer chooses a different join order, SQL 9 system performance may be slow. KB - 920346 
+4105 	
+4106 	
+4107 	SQL 9 - When you run a query that references a partitioned table, query performance may decrease. KB 923849 
+4108 	
+4109 	
+4110 	
+4111 	
+4112 	
+4115 	
+4116 	SQL 9 - Query runs slowly when using joins between a local and a remote table. KB 950880 
+4117 	SQL 9 - Blocking issues occur when updating rows in a table. KB 948445 
+
+4118 	SQL 9 - Query performance is slow if the execution plan of the query contains semi join operators Typically, semi join operators are generated when the query contains the IN keyword or the EXISTS keyword. Enable flag 4102 and 4118 to overcome this. KB 940128 
+4119 	
+4120 	
+4101 	SQL 9 - Query that involves an outer join operation runs very slowly. However, if you use the FORCE ORDER query hint in the query, the query runs much faster. Additionally, the execution plan of the query contains the following text in the Warnings column:  NO JOIN PREDICATE. 
+4121 	
+4122 	
+4123 	Query that has many outer joins takes a long time to compile in SQL Server 2005
+KB Article:http://support.microsoft.com/kb/943060
+First Added: SQL 2005 SP2 CU4
+Versions: SQL 2005 
+4124 	
+4125 	SQL 9 - Query may take more time to finish if using an inner join to join a derived table that uses DISTINCT keyword. KB 949854 
+4126 	
+4127 	SQL 9 - Compilation time of some queries is very long in an x64-based version. Basically its more than execution time because more memory allocations are necessary in the compilation process. Kb 953569 
+4128 	
+4129 	
+4131 	
+4133 	SQL 9/10 - Size of error log file grows very quickly when query notifications are created and destroyed in a high ratio. KB 958006 
+
+4134 	Incorrect results or constraint violation when you run a SELECT or DML statement that uses the row_number function and a parallel execution plan in SQL Server 2008
+Purpose 2: Results may change every time that you run a parallel query in SQL Server 2005, in SQL Server 2008, or in SQL Server 2008 R2 if the query uses a ranking function and if the computer has eight or more CPUs
+KB Article 1:http://support.microsoft.com/kb/2589980
+KB Article 2:http://support.microsoft.com/kb/2546901
+First Added: SQL 2008 CU6 or SQL 2008 SP1 CU2
+Versions: SQL 2008 
+4135 	SQL 10 - Disables optimization in Query optimizer KB 960770 
+4136 	Disables parameter sniffing (http://blogs.msdn.com/b/queryoptteam/archive/2006/03/31/565991.aspx(http://blogs.msdn.com/b/queryoptteam/archive/2006/03/31/565991.aspx)) which is equivalent to adding an OPTIMIZE FOR UNKNOWN hint to each query which references a parameter. KB 980653 
+4137 	FIX: Poor performance when you run a query that contains correlated AND predicates in SQL Server 2008 or in SQL Server 2008 R2 or in SQL Server 2012. KB 2658214 
+4138 	A query may take a long time to run if the query optimizer uses the Top operator in SQL Server 2008 R2 or in SQL Server 2012. KB 2667211 
+4199 	Over time there were multiple fixes, each controlled with a different trace flag. This can make troubleshooting query performance difficult and time-consuming. To improve the troubleshooting process, trace flag 4199 was added in CuP 6 for SQL Server 2005 SP3, CuP 7 for SQL Server 2008, CuP 7 for SQL Server 2008 SP1, and SQL Server 2008 R2. This one trace flag can be used to enable all the fixes that were previously made for the query processor under many trace flags. In addition, all future query processor fixes will be controlled by using this trace flag. Scope: global / session. 
+KB article 	Flag 	KB article 	Flag 	KB article 	Flag 	KB article 	Flag 
+318530 
+4101 	926024 
+4108 	942659 
+4119 	953569 
+4127 
+940128 
+4102 	926773 
+4109 	953948 
+4120 	955694 
+4128 
+919905 
+4103 	933724 
+4110 	942444 
+4121 	957872 
+
+920346 
+4104 	934065 
+4111 	946020 
+4122 	958547 
+4129 
+920347 
+4105 	946793 
+4115 	948248 
+4124 	956686 
+4131 
+922438 
+4106 	950880 
+4116 	949854 
+4125 	958006 
+4133 
+923849 
+4107 	948445 
+4117 	959013 
+4126 	960770 
+4135* 
+2276330 		2698639 		2649913 		2260502 	
+
+4606 	Over comes SA password by startup.  KB 936892 / Disables password policy check during server startup. 
+4610 	When you use trace flag 4618 together with trace flag 4610, the number of entries in the cache store is limited to 8,192. When the limit is reached, SQL 2005 removes some entries from the TokenAndPermUserStore cache store. KB 959823. 
+4612 	Disable the ring buffer logging - no new entries will be made into the ring buffer. 
+4613 	Generate a minidump file whenever an entry is logged into the ring buffer. 
+4614 	Enables SQL Server authenticated logins that use Windows domain password policy enforcement to log on to the instance even though the SQL Server service account is locked out or disabled on the Windows domain controller. KB 925744. 
+4616 	Makes server-level metadata visible to application roles. In SQL Server, an application role cannot access metadata outside its own database because application roles are not associated with a server-level principal. This is a change of behavior from earlier versions of SQL Server. Setting this global flag disables the new restrictions, and allows for application roles to access server-level metadata. Scope: global 
+4618 	Limits number of entries per user cache store to 1024. It may incur a small CPU overhead as when removing old cache entries when new entries are inserted. It performs this action to limit the size of the cache store growth. However, the CPU overhead is spread over time. Kb 933564 
+4621 	SQL 9 – After 4610 & 4618 you can still customize the quota for TokenAndPermUserStore cache store that is based on the current workload.  KB 959823 
+5101 	Forces all I/O requests to go through engine 0. This removes the contention between processors but could create a bottleneck if engine 0 becomes busy with non-I/O tasks. For more information...5101/5102. 
+
+5102 	Prevents engine 0 from running any non-affinitied tasks. For more information...5101/5102. 
+
+5302 	Alters default behavior of select…INTO (and other processes) that lock system tables for the duration of the transaction. This trace flag disables such locking during an implicit transaction.  
+6527 	Disables generation of a memory dump on the first occurrence of an out-of-memory exception in CLR integration. By default, SQL Server generates a small memory dump on the first occurrence of an out-of-memory exception in the CLR.   
+The behavior of the trace flag is as follows: 
+•	If this is used as a startup trace flag, a memory dump is never generated. However, a memory dump may be generated if other trace flags are used. 
+•	If this trace flag is enabled on a running server, a memory dump will not be automatically generated from that point on. However, if a memory dump has already been generated due to an out-of-memory exception in the CLR, this trace flag will have no effect. 
+Scope: global 
+7103 	Disable table lock promotion for text columns.  KB 230044 
+7300 	Retrieves extended information about any error you encounter when you execute a distributed query. 
+7501 	Dynamic cursors are used by default on forward-only cursors. Dynamic cursors are faster than in earlier versions and no longer require unique indexes. 75401 4disables dynamic cursor enhancements and reverts to version 6.0 behavior. 
+7502 	Disables the caching of cursor plans for extended stored procedures. 
+7505 	Enables version 6.x handling of return codes when calling dbcursorfetchex and the resulting cursor position follows the end of the cursor result set. 
+7525 	SQL 8 - Reverts to ver 7 behavior of closing nonstatic cursors regardless of the SET CURSOR_CLOSE_ON_COMMIT state. 
+7601 
+7603 
+7604 
+7605 	Helps in gathering more information in full text search by turning on full text tracing which gathers information on indexing process using the error log. 
+7608 	Performance fix for slow full text population with a composite clustered index
+KB Article:http://support.microsoft.com/kb/938672
+First Added: SQL 2005 SP2 CU3
+Versions: SQL 2005, SQL 2008, SQL 2008 R2, SQL 2012 
+7613 	SQL 9 - Search results are missing when performing a full-text search operation on Win SharePoint Services 2.0 site after upgrading. KB 927643 
+
+7614 	SQL 9 - Full-text index population for the indexed view is very slow. KB 928537 
+7646 	SQL 10 - Avoids blocking when using full text indexing. An issue we experienced that full text can be slow when there is a high number of updates to the index and is caused by blocking on the docidfilter internal table. 
+7806 	SQL 9 - Enables a dedicated administrator connection on SQL Express, DAC resources are not reserved by default. 
+Scope: global. 
+8002 	Allows changing the meaning of affinity mask so that it is treated like a process affinity. KB 818769 
+8004 	SQL server to create a mini-dump once you enable 2551 and a out of memory condition is hit. 
+8010 	SQL Server services cannot be stopped on a computer that has SQL Server 2008 R2 Express Edition installed
+KB Article:http://support.microsoft.com/kb/2633271
+First Added: SQL 2008 R2 SP1 CU4
+Versions: SQL 2008 R2 
+8011 	Disables the collection of additional diagnostic information for Resource Monitor. You can use the information in this ring buffer to diagnose out-of-memory conditions. Scope GLOBAL. 
+8012 	Records an event in the schedule ring buffer every time that one of the following events occurs: 
+•	A scheduler switches context to another worker. 
+•	A worker is suspended or resumed. 
+•	A worker enters the preemptive mode or the non-preemptive mode. 
+You can use the diagnostic information in this ring buffer to analyze scheduling problems. For example, you can use the information in this ring buffer to troubleshoot problems when SQL Server stops responding. Trace flag 8012 disables recording of events for schedulers. Scope Startup. 
+8015 	SQL 9 - CPU utilization of a CPU in a single node increases to 100 percent when you use SQL Server 2005 on a multiprocessor computer that uses NUMA architecture. Scope - Startup KB 948450 
+
+8017 	upgrade version conflict http://social.msdn.microsoft.com/Forums/eu/sqlexpress/thread/dd6fdc16-9d8d-4186-9549-85ba4c322d10
+
+and http://connect.microsoft.com/SQLServer/feedback/details/407692/indicateur-de-trace-8017-reported-while-upgrading-from-ssee2005-to-ssee2008 
+
+8018 	Disables the creation of the ring buffer, and no exception information is recorded. The exception ring buffer records the last 256 exceptions that are raised on a node. Each record contains some information about the error and contains a stack trace. A record is added to the ring buffer when an exception is raised. Scope Startup 
+8019 	Disables stack collection during the record creation, has no effect if trace flag 8018 is turned on. Disabling the exception ring buffer makes it more difficult to diagnose problems that are related to internal server errors. Scope Startup 
+8020 	SQL Server uses the size of the working set when SQL Server interprets the global memory state signals from the operating system. Trace flag 8020 removes the size of the working set from consideration when SQL Server interprets the global memory state signals. If you use this trace flag incorrectly, heavy paging occurs, and the performance is poor. Therefore, contact Microsoft Support before you use. Scope Startup. 
+8030 	SQL 9 - Occurs only on 64-bit servers with 16+ GB of physical memory. On SQL 9 query performance may degrade with time and when you query the sys.dm_os_wait_stats dynamic management view, you may notice that there are many rows in which the values of the wait_type column are SOS_RESERVEDMEMBLOCKLIST or DBCC MEMORYSTATUS. This situation indicates that many multipage allocations exist. KB 917035 
+
+8033 	SQL 9 - Disable the reporting of CPU Drift errors in the SQL Server error log like time stamp counter of CPU on scheduler id 1 is not synchronized with other CPUs. 
+8038 	SQL 9+ Database engine & SSRS use SQLOS which exposes an internal timer which if set to a 1ms granularity, more power consumption may occur on Windows client. 8038 avoids it affecting the output of some DMV’s. Scope Startup KB 972767 
+
+8048 	Newer hardware with multi-core CPUs can present more than 8 CPUs within a single NUMA node. Microsoft has observed that when you approach and exceed 8 CPUs per node the NODE based partitioning may not scale as well for specific query patterns. However, using trace flag 8048 (startup parameter only requiring restart of the SQL Server process) all NODE based partitioning is upgraded to CPU based partitioning. Remember this requires more memory overhead but can provide performance increases on these systems. 
+HOW DO I KNOW IF I NEED THE TRACE FLAG? 
+The issue is commonly identified by looking as the DMVs dm_os_wait_stats and dm_os_spin_stats for types (CMEMTHREAD and SOS_SUSPEND_QUEUE). Microsoft CSS usually sees the spins jump into the trillions and the waits become a hot spot. 
+http://blogs.msdn.com/b/psssql/archive/2011/09/01/sql-server-2008-2008-r2-on-newer-machines-with-more-than-8-cpus-presented-per-numa-node-may-need-trace-flag-8048.aspx 
+
+8049 	SQL 9+ Startup only – Allows use of 1ms times even when patched. Check 8038 for details. KB 972767 
+
+8202 	Used to replicate UPDATE as DELETE/INSERT pair at the publisher. i.e. UPDATE commands at the publisher can be run as an "on-page DELETE/INSERT" or a "full DELETE/INSERT". If the UPDATE command is run as an "on-page DELETE/INSERT," the Logreader send UDPATE command to the subscriber, If the UPDATE command is run as a "full DELETE/INSERT," the Logreader send UPDATE as DELETE/INSERT Pair. If you turn on trace flag 8202, then UPDATE commands at the publisher will be always send to the subscriber as DELETE/INSERT pair. 
+8206 	SQL 8 - Supports stored procedure execution with a user specified owner name for SQL Server subscribers or without owner qualification for heterogeneous subscribers. 
+8203 	Display statement and transaction locks on a deadlock error. 
+8207 	Enables singleton updates for Transactional Replication, released with SQL Server 8 SP 1. KB 302341. 
+8446 	Databases in SQL 8 do not have a Service Broker ID. If you restore these databases on SQL 9 by using the WITH NORECOVERY option, these databases will not be upgraded causing mirroring & log-shipping configurations to fail. KB 959008. 
+8501 	Writes detailed information about Ms-DTC context & state changes to the log. 
+8599 	Allows you to use a save-point within a distributed transaction. 
+8602 	Ignore index hints that are specified in query/procedure. 
+8649 	Forces //ism by setting the cost threshold for parallelism from 1 to 0. 
+8679 	Prevents the SQL Server optimizer from using a Hash Match Team operator. 
+8687 	Used to disable query parallelism. 
+8721 	Dumps information into the error log when AutoStat has been run. 
+8722 	Disable all other types of hints. This includes the OPTION clause. 
+8744 	Disables pre-fetching for the Nested Loops operator. Incorrect use of this trace flag may cause additional physical reads when SQL Server executes plans that contain the Nested Loops operator. For more information about the Nested Loops operator, see the "Logical and physical operators reference" topic in SQL Server 9 BOL.
+You can turn on trace flag 8744 at startup or in a user session. When you turn on trace flag 8744 at startup, the trace flag has global scope. When you turn on trace flag 8744 in a user session, the trace flag has session scope. 
+8755 	Disable any locking hints like READONLY. Allows SQL Server to dynamically select the best locking hint for the query. 
+8765 	Allows use of variable length data, from ODBC driver; fixes the issue of a field returning the wrong data length. 
+8783 	Allows DELETE, INSERT, and UPDATE statements to honor the SET ROWCOUNT ON setting when enabled. 
+8816 	Logs every two-digit year conversion to a four-digit year. 
+9059 	SQL 8 - Turns back behavior to SP3 after a SP4 installation, this allows to choose an index seek when comparing numeric columns or numeric constants that are of different precision or scale; else would have to change schema/code. 
+9082 	SQL 9 - Stored procedure using views, perform slow compared to ver 8 if views use JOIN operator and contain sub queries. KB 942906 
+9134 	SQL 8 - Does additional reads to test if the page is allocated & linked correctly this checks IAM & PFS. Fixes error 601 for queries under Isolation level read uncommitted. In case performance is affected (because of a bug) apply SP4. 
+9204 	When enabled and a plan is compiled or recompiled there is a listing of statistics which is being fully loaded & used to produce cardinality and distribution estimates for some plan alternative or other. 
+9259 	SQL 9/10 - An access violation occurs on running a query marked by the following message and a dump in the log folder: KB 970279 / 971490 
+Msg 0, Level 11, State 0, Line 0 - A severe error occurred on the current command. The results, if any, should be discarded.
+Msg 0, Level 20, State 0, Line 0 - A severe error occurred on the current command. The results, if any, should be discarded. 
+9292 	When enabled the query analyzer provides a report of statistics objects while compiling / recompiling the query. Only header is loaded for the potentially useful statistics. 
+9268 	SQL 8 - When SQL Server runs a parameterized query that contains several IN clauses, each with a large number of values, SQL Server may return the following error message after a minute or more of high CPU utilization: KB 325658 
+Server: Msg 8623, Level 16, State 1
+Internal Query Processor Error: The query processor could not produce a query plan. Contact your primary support provider for more information. 
+9485 	SQL 11 cu 2 - Reverts original permissions for DBCC SHOW_STATISTICS i.e. allows for users who have SELECT permissions to run the DBCC SHOW_STATISTICS command in case the following conditions are true (KB 2683304): 
+Users have SELECT permissions on all columns in the statistics object. 
+Users have SELECT permissions on all columns in a filter condition if the filter exists. 
+9532 	SQL 11 CTP3 - to get more than 1 availability group replica in CTP3 Scope Startup. 
