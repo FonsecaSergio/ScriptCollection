@@ -1,3 +1,12 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: 2020-04-06
+************************************************/
+
+DECLARE @transaction_duration_sec INT = 0
+
 SELECT
     trans.session_id AS [SESSION ID],
     ESes.host_name AS [HOST NAME],
@@ -47,3 +56,4 @@ LEFT OUTER JOIN sys.databases AS DBs
 LEFT OUTER JOIN sys.dm_exec_sessions AS ESes
 	ON trans.session_id = ESes.session_id
 WHERE ESes.session_id IS NOT NULL
+AND DATEDIFF(SECOND, tas.transaction_begin_time, SYSDATETIME()) >= @transaction_duration_sec

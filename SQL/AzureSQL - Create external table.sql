@@ -1,4 +1,11 @@
-CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'Microsoft@777'
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: 2020-04-06
+************************************************/
+
+CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'Microsoft@2020'
 
 CREATE DATABASE SCOPED CREDENTIAL XPTO WITH IDENTITY = 'FonsecaSergio',SECRET = 'xxxxxx';
 

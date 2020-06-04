@@ -1,3 +1,10 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: ?
+************************************************/
+
 USE [master]
 GO
  
@@ -15,7 +22,7 @@ GO
 		  SET @execSql += 'WITH ROLLBACK IMMEDIATE' + CHAR(10)
  
 		  -----------------------------------------------------------------------------
-		  -- Agora vamos realizar a tarefa de matar as conexões
+		  -- Agora vamos realizar a tarefa de matar as conexï¿½es
 		  SET @execSql = ''
 		  SELECT 
 				 @execSql = @execSql + 'KILL ' + convert(char(10), spid) + ' '
@@ -122,7 +129,7 @@ BEGIN
       SET @execSql += 'WITH ROLLBACK IMMEDIATE' + CHAR(10)
  
       -----------------------------------------------------------------------------
-      -- Agora vamos realizar a tarefa de matar as conexões
+      -- Agora vamos realizar a tarefa de matar as conexï¿½es
       SET @execSql = ''
       SELECT 
              @execSql = @execSql + 'KILL ' + convert(char(10), spid) + ' '

@@ -1,3 +1,10 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: 2020-04-06
+************************************************/
+
 DROP PROCEDURE IF EXISTS #spSQLTroubleshooting
 GO
 
@@ -372,10 +379,13 @@ AS
 		
 GO
 
+EXEC #spSQLTroubleshooting
+
+/*
 EXEC #spSQLTroubleshooting 
 	 @spid = 0
 	,@only_user_process = 1
-	,@only_active_requests = 0
+	,@only_active_requests = 1
 	,@ignoreAzureSQLDBprocesses = 0
 	,@ignoreThisSPID = 1
 	,@troubleshooting_connection = 0
@@ -383,7 +393,7 @@ EXEC #spSQLTroubleshooting
 	,@troubleshooting_transaction = 1
 	,@troubleshooting_requests = 1
 
---EXEC #spSQLTroubleshooting @spid = @@SPID
+EXEC #spSQLTroubleshooting @spid = @@SPID
 
 EXEC #spSQLTroubleshooting 
 	 @spid = 122
@@ -395,3 +405,4 @@ EXEC #spSQLTroubleshooting
 	,@troubleshooting_sessionperfcounters = 0
 	,@troubleshooting_transaction = 0
 	,@troubleshooting_requests = 1
+*/

@@ -1,3 +1,10 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: 2020-04-06
+************************************************/
+
 --https://techcommunity.microsoft.com/t5/DataCAT/CPU-and-Memory-Allocation-on-Azure-SQL-Database-Managed-Instance/ba-p/305508
 
 SELECT cntr_value / 1024

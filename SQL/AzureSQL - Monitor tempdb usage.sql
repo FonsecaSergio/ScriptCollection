@@ -1,3 +1,10 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: 2020-04-06
+************************************************/
+
 -- Determining the Amount of Free Space in TempDB
 SELECT 
 	SUM(unallocated_extent_page_count) AS [free pages],

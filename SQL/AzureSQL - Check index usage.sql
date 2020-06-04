@@ -1,3 +1,10 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: 2020-04-06
+************************************************/
+
 DECLARE @IndexType_HEAP INT = 0
 DECLARE @IndexType_CLUSTERED INT = 1
 DECLARE @IndexType_NONCLUSTERED INT = 2
