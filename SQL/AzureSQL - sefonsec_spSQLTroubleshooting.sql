@@ -12,7 +12,7 @@ CREATE PROCEDURE #spSQLTroubleshooting
 (
 	 @DEBUG bit = 1
 	,@only_user_process bit = 1
-	,@only_active_requests bit = 1
+	,@only_active_requests bit = 0
 	,@ignoreAzureSQLDBprocesses bit = 0
 	,@ignoreThisSPID bit = 1
 	,@spid int = 0
@@ -280,7 +280,7 @@ AS
 		SET @SQL_QUERY += '	,R.plan_handle' + CHAR(10)
 		SET @SQL_QUERY += '	,R.query_plan_hash' + CHAR(10)
 		SET @SQL_QUERY += '	,batch_query_plan = P.query_plan' + CHAR(10)
-		SET @SQL_QUERY += '	,statement_query_plan = CONVERT(XML, P2.query_plan)' + CHAR(10)
+		SET @SQL_QUERY += '	,statement_query_plan = TRY_CONVERT(XML, P2.query_plan)' + CHAR(10)
 		/**********************************************************************************/
 
 		SET @SQL_QUERY += '	,R.wait_type' + CHAR(10)
@@ -369,7 +369,8 @@ AS
 		SET @SQL_QUERY += '	)' + CHAR(10)
 	END
 	--------------------------------------------------------------------------------------------------------
-
+	SET @SQL_QUERY += 'ORDER BY C.session_id ASC' + CHAR(10)
+	--------------------------------------------------------------------------------------------------------
 
 	IF @DEBUG = 1
 		PRINT @SQL_QUERY
