@@ -20,12 +20,15 @@ INNER JOIN sys.indexes i ON i.object_id = p.object_id
 WHERE p.hobt_id = 72057594045857792
 
 -- For Page resources
+SELECT OBJECT_NAME(object_id),* from sys.dm_db_page_info(DB_ID(),1,8,'LIMITED') P
+
+or
+
+
 DBCC TRACEON (3604)
 GO
-
 DBCC PAGE(6, 1, 791, 3)
 GO
-
 DBCC TRACEOFF (3604)
 
 -- For Key resources

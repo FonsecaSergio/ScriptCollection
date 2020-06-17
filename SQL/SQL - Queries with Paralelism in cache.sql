@@ -8,7 +8,7 @@ Last Update Date: ?
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED ;
 
 WITH XMLNAMESPACES (DEFAULT 'http://schemas.microsoft.com/sqlserver/2004/07/showplan')
-SELECT 
+SELECT TOP 1
 	query_plan AS CompleteQueryPlan ,
 	n.value('(@StatementText)[1]', 'VARCHAR(4000)') AS StatementText ,
 	n.value('(@StatementOptmLevel)[1]', 'VARCHAR(25)')
