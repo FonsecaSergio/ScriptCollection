@@ -287,6 +287,32 @@ AS
 		SET @SQL_QUERY += '	,R.wait_time' + CHAR(10)
 		SET @SQL_QUERY += '	,R.last_wait_type' + CHAR(10)
 		SET @SQL_QUERY += '	,R.wait_resource' + CHAR(10)
+
+/*
+--WAIT PAGE USE
+SELECT OBJECT_NAME(object_id),* from sys.dm_db_page_info(DB_ID(),1,8,'LIMITED') P
+
+--WAIT KEY
+SELECT 
+	DB_ID(),
+	object_name(p.object_id) AS object_name,
+	i.name AS index_name,
+	p.object_id,
+	p.index_id,
+	p.partition_number
+FROM sys.partitions p
+INNER JOIN sys.indexes i ON i.object_id = p.object_id
+	AND i.index_id = p.index_id
+WHERE p.hobt_id = 72057594045857792
+
+
+-- For Key resources
+SELECT *
+FROM Production.Product WITH (NOLOCK)
+WHERE % % lockres % % COLLATE DATABASE_DEFAULT = '(61a06abd401c)' -- Key hash obtained from resource_description column
+*/
+
+
 		SET @SQL_QUERY += '	,R.blocking_session_id' + CHAR(10)
 
 		SET @SQL_QUERY += '	,R.percent_complete' + CHAR(10)
