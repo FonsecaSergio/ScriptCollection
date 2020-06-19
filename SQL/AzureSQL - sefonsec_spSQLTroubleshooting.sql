@@ -2,7 +2,9 @@
 Author: Sergio Fonseca
 Twitter @FonsecaSergio
 Email: sergio.fonseca@microsoft.com
-Last Update Date: 2020-04-06
+Last Update Date: 2020-06-19
+
+*2020-06-19 - DETAILS ON LCK WAIT FOR KEY AND OBJECT - Still need some review
 ************************************************/
 
 DROP PROCEDURE IF EXISTS #spSQLTroubleshooting
@@ -139,6 +141,217 @@ AS
 	/**********************************************************************************/
 
 	
+	-----------------------------------------------------------------------------------
+	--WAIT_RESOURCE
+	-----------------------------------------------------------------------------------
+	ALTER TABLE #TEMP_dm_exec_requests ADD [wait_resource_Type] VARCHAR(10) NULL
+	ALTER TABLE #TEMP_dm_exec_requests ADD [wait_resource_db_id] INT NULL
+	ALTER TABLE #TEMP_dm_exec_requests ADD [wait_resource_hobt_id] BIGINT NULL
+	ALTER TABLE #TEMP_dm_exec_requests ADD [wait_resource_object_id] INT NULL
+	ALTER TABLE #TEMP_dm_exec_requests ADD [wait_resource_object_name] SYSNAME NULL
+	ALTER TABLE #TEMP_dm_exec_requests ADD [wait_resource_index_id] INT NULL
+	ALTER TABLE #TEMP_dm_exec_requests ADD [wait_resource_index_name] SYSNAME NULL
+	ALTER TABLE #TEMP_dm_exec_requests ADD [wait_resource_description] VARCHAR(500) NULL
+	
+	-----------------------------------------------------------------------------------
+	-- LOCK WAITS
+
+	--KEY: 9:72057594056015872 (8194443284a0)
+	--OBJECT: 9:1872725724:0 
+
+
+
+	UPDATE #TEMP_dm_exec_requests
+		SET [wait_resource_Type] = SUBSTRING(wait_resource, 0, CHARINDEX(':',wait_resource))
+	WHERE [wait_type] like 'LCK%'
+
+
+	UPDATE #TEMP_dm_exec_requests
+		SET [wait_resource_db_id] = 
+			TRY_CONVERT(INT,SUBSTRING (
+				(RIGHT([wait_resource], LEN ([wait_resource]) - LEN ([wait_resource_Type])-1))
+				,0
+				,CHARINDEX(':', (RIGHT([wait_resource], LEN ([wait_resource]) - LEN ([wait_resource_Type])-1)))
+				))
+	WHERE 
+		[wait_type] like 'LCK%'
+
+
+
+	-----------------------------------------------------------------------------------
+	--KEY LOCK
+
+	
+	UPDATE #TEMP_dm_exec_requests
+		SET [wait_resource_hobt_id] = 
+			REVERSE(SUBSTRING(
+				 REVERSE([wait_resource])
+				,CHARINDEX('(',REVERSE([wait_resource]))+2
+				,(CHARINDEX(':',REVERSE([wait_resource]))) - (CHARINDEX('(',REVERSE([wait_resource]))+2)
+			 ))
+	WHERE 
+		[wait_type] like 'LCK%'
+		AND [wait_resource_Type] = 'KEY'
+
+
+	UPDATE #TEMP_dm_exec_requests
+		SET 
+			 [wait_resource_object_id] = P.[object_id]
+			,[wait_resource_object_name] = 
+				 CASE
+					WHEN [wait_resource_db_id] = DB_ID() THEN OBJECT_NAME(P.[object_id])
+					ELSE ''
+				 END
+			,[wait_resource_index_id] = P.[index_id]
+			,[wait_resource_index_name]	=
+				 CASE
+					WHEN [wait_resource_db_id] = DB_ID() THEN I.name
+					ELSE ''
+				 END
+	FROM #TEMP_dm_exec_requests R
+	INNER JOIN sys.partitions P 
+		ON R.[wait_resource_hobt_id] = P.hobt_id
+	LEFT JOIN sys.indexes I
+		ON P.object_id = I.object_id AND
+		   P.index_id = I.index_id
+	WHERE 
+		[wait_type] like 'LCK%'
+		AND [wait_resource_Type] = 'KEY'
+
+
+
+	-----------------------------------------------------------------------------------
+	--OBJECT LOCK
+		UPDATE #TEMP_dm_exec_requests
+		SET 
+			 [wait_resource_object_id] = 
+				 REVERSE(SUBSTRING(
+					SUBSTRING(
+						REVERSE([wait_resource])
+						,CHARINDEX(':',REVERSE([wait_resource]))+1
+						,LEN(REVERSE([wait_resource]))-1
+					)
+					,0
+					,CHARINDEX(':', SUBSTRING(
+						REVERSE([wait_resource])
+						,CHARINDEX(':',REVERSE([wait_resource]))+1
+						,LEN(REVERSE([wait_resource]))-1
+					))
+				))
+			,[wait_resource_object_name] = 
+				 CASE
+					WHEN [wait_resource_db_id] = DB_ID() THEN T.[name]
+					ELSE ''
+				 END
+	FROM #TEMP_dm_exec_requests R
+	INNER JOIN sys.tables T
+		ON T.object_id = 
+			REVERSE(SUBSTRING(
+				SUBSTRING(
+					REVERSE([wait_resource])
+					,CHARINDEX(':',REVERSE([wait_resource]))+1
+					,LEN(REVERSE([wait_resource]))-1
+				)
+				,0
+				,CHARINDEX(':', SUBSTRING(
+					REVERSE([wait_resource])
+					,CHARINDEX(':',REVERSE([wait_resource]))+1
+					,LEN(REVERSE([wait_resource]))-1
+				))
+			))
+	WHERE 
+		[wait_type] like 'LCK%'
+		AND [wait_resource_Type] = 'OBJECT'
+
+	-----------------------------------------------------------------------------------
+
+	UPDATE #TEMP_dm_exec_requests
+		SET [wait_resource_description] = 
+			CASE [wait_resource_Type] 
+				WHEN 'KEY'    THEN CONCAT([wait_resource_Type], ' / ', [wait_type], ' / OBJECT::', COALESCE([wait_resource_object_name],''), '(', [wait_resource_object_id] ,') / INDEX::', COALESCE([wait_resource_index_name],'') )
+				WHEN 'OBJECT' THEN CONCAT([wait_resource_Type], ' / ', [wait_type], ' / OBJECT::', COALESCE([wait_resource_object_name],''), '(', [wait_resource_object_id] ,')' )
+				ELSE NULL
+			END
+
+
+
+	-----------------------------------------------------------------------------------
+
+
+
+	/*
+
+	SELECT 
+		 [session_id]
+		,[wait_resource]
+		,[wait_type]
+		,[wait_resource_Type]
+		,REVERSE([wait_resource])
+		,CHARINDEX('(',REVERSE([wait_resource]))
+		,CHARINDEX(':',REVERSE([wait_resource]))
+		,REVERSE(SUBSTRING(
+			 REVERSE([wait_resource])
+			,CHARINDEX('(',REVERSE([wait_resource]))+2
+			,(CHARINDEX(':',REVERSE([wait_resource]))) - (CHARINDEX('(',REVERSE([wait_resource]))+2)
+		 ))
+		 ,[wait_resource_hobt_id]
+		 ,[wait_resource_object_id]
+		 ,[wait_resource_object_name]
+		 ,[wait_resource_db_id] =
+			TRY_CONVERT(INT,SUBSTRING (
+				(RIGHT([wait_resource], LEN ([wait_resource]) - LEN ([wait_resource_Type])-1))
+				,0
+				,CHARINDEX(':', (RIGHT([wait_resource], LEN ([wait_resource]) - LEN ([wait_resource_Type])-1)))
+				))
+		 ,object_object_id = 
+			REVERSE(SUBSTRING(
+				SUBSTRING(
+					REVERSE([wait_resource])
+					,CHARINDEX(':',REVERSE([wait_resource]))+1
+					,LEN(REVERSE([wait_resource]))-1
+				)
+				,0
+				,CHARINDEX(':', SUBSTRING(
+					REVERSE([wait_resource])
+					,CHARINDEX(':',REVERSE([wait_resource]))+1
+					,LEN(REVERSE([wait_resource]))-1
+				))
+			))
+
+	FROM #TEMP_dm_exec_requests
+	WHERE 
+		[wait_resource] IS NOT NULL 
+		AND [wait_resource] != ''
+		AND [wait_type] like 'LCK%'
+		AND [wait_resource_Type] = 'OBJECT'
+		*/
+		
+	-----------------------------------------------------------------------------------
+
+	/*
+--WAIT PAGE USE
+SELECT OBJECT_NAME(object_id),* from sys.dm_db_page_info(DB_ID(),1,8,'LIMITED') P
+
+--WAIT KEY
+SELECT 
+	DB_ID(),
+	object_name(p.object_id) AS object_name,
+	i.name AS index_name,
+	p.object_id,
+	p.index_id,
+	p.partition_number
+FROM sys.partitions p
+INNER JOIN sys.indexes i ON i.object_id = p.object_id
+	AND i.index_id = p.index_id
+WHERE p.hobt_id = 72057594045857792
+
+
+-- For Key resources
+SELECT *
+FROM Production.Product WITH (NOLOCK)
+WHERE % % lockres % % COLLATE DATABASE_DEFAULT = '(61a06abd401c)' -- Key hash obtained from resource_description column
+*/
+
 
 
 
@@ -287,31 +500,7 @@ AS
 		SET @SQL_QUERY += '	,R.wait_time' + CHAR(10)
 		SET @SQL_QUERY += '	,R.last_wait_type' + CHAR(10)
 		SET @SQL_QUERY += '	,R.wait_resource' + CHAR(10)
-
-/*
---WAIT PAGE USE
-SELECT OBJECT_NAME(object_id),* from sys.dm_db_page_info(DB_ID(),1,8,'LIMITED') P
-
---WAIT KEY
-SELECT 
-	DB_ID(),
-	object_name(p.object_id) AS object_name,
-	i.name AS index_name,
-	p.object_id,
-	p.index_id,
-	p.partition_number
-FROM sys.partitions p
-INNER JOIN sys.indexes i ON i.object_id = p.object_id
-	AND i.index_id = p.index_id
-WHERE p.hobt_id = 72057594045857792
-
-
--- For Key resources
-SELECT *
-FROM Production.Product WITH (NOLOCK)
-WHERE % % lockres % % COLLATE DATABASE_DEFAULT = '(61a06abd401c)' -- Key hash obtained from resource_description column
-*/
-
+		SET @SQL_QUERY += '	,R.wait_resource_description' + CHAR(10)		
 
 		SET @SQL_QUERY += '	,R.blocking_session_id' + CHAR(10)
 
