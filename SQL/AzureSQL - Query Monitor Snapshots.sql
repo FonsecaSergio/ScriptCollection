@@ -1,3 +1,10 @@
+/************************************************
+Author: Sergio Fonseca
+Twitter @FonsecaSergio
+Email: sergio.fonseca@microsoft.com
+Last Update Date: 2020-07-09
+************************************************/
+
 DROP PROCEDURE IF EXISTS #TEMP_MONITOR
 GO
 
