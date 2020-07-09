@@ -19,3 +19,8 @@ SELECT d.name, slo.*
 FROM sys.databases d   
 JOIN sys.database_service_objectives slo    
 ON d.database_id = slo.database_id;  
+
+
+SELECT * FROM sys.resource_usage
+
+SELECT * FROM sys.server_resource_stats
