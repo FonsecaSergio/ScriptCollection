@@ -1,14 +1,21 @@
 ﻿########################################################################################################
 #CONNECT TO AZURE
+Clear-Host
+
 $SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
 
 $Context = Get-AzContext
-if($Context -eq $null)
-{
-    Connect-AzAccount
-}
-$Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName
-Set-AzContext $Subscription
 
-Clear-Host
+if ($Context -eq $null) {
+    Write-Information "Need to login"
+    Connect-AzAccount -Subscription $SubscriptionName
+}
+else
+{
+    Write-Host "Login was done"
+    Write-Host "Current credential is $($Context.Account.Id)"
+    $Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -WarningAction Ignore
+    Select-AzSubscription -Subscription $Subscription.Id | Out-Null
+    Write-Host "Current subscription is $($Context.Subscription.Name)"
+}
 ########################################################################################################

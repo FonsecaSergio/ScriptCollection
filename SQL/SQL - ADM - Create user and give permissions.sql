@@ -2,7 +2,7 @@
 Author: Sergio Fonseca
 Twitter @FonsecaSergio
 Email: sergio.fonseca@microsoft.com
-Last Update Date: 2020-04-06
+Last Update Date: 2020-08-14
 ************************************************/
 
 ---------------------------------------------
@@ -31,7 +31,7 @@ Last Update Date: 2020-04-06
 	GO
 	GRANT EXECUTE TO [username]
 
-	(https://docs.microsoft.com/en-us/sql/relational-databases/security/permissions-database-engine?view=sql-server-2017#_permissions)
+	--https://docs.microsoft.com/en-us/sql/relational-databases/security/permissions-database-engine?view=sql-server-ver15#_permissions
 
 
 
