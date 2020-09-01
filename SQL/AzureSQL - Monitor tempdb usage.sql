@@ -1,14 +1,16 @@
-DROP TABLE IF EXISTS ##TEMP_COLUMNS 
-GO
-SELECT * INTO ##TEMP_COLUMNS 
-FROM sys.columns
-
 /************************************************
 Author: Sergio Fonseca
 Twitter @FonsecaSergio
 Email: sergio.fonseca@microsoft.com
 Last Update Date: 2020-09-01
 ************************************************/
+
+/*
+DROP TABLE IF EXISTS ##TEMP_COLUMNS 
+GO
+SELECT * INTO ##TEMP_COLUMNS 
+FROM sys.columns
+*/
 
 -- Determining the Amount of Space Used  / free
 SELECT 
@@ -34,7 +36,7 @@ SELECT
 	,[session_id] = Su.session_id
 	,[login_name] = MAX(S.login_name)
 	,[database_id] = MAX(S.database_id)
-	,[database_name] = MAX(DB_NAME(S.database_id))
+	,[database_name] = MAX(D.name)
 	,[elastic_pool_name] = MAX(DSO.elastic_pool_name)
 	,[internal_objects_alloc_page_count_MB] = SUM(internal_objects_alloc_page_count) * 8 / 1024.0
 	,[user_objects_alloc_page_count_MB] = SUM(user_objects_alloc_page_count) * 8 / 1024.0
@@ -43,6 +45,8 @@ LEFT JOIN sys.dm_exec_sessions S
         ON SU.session_id = S.session_id
 LEFT JOIN sys.database_service_objectives DSO
         ON S.database_id = DSO.database_id
+LEFT JOIN sys.databases D
+	ON S.database_id = D.database_id
 WHERE internal_objects_alloc_page_count + user_objects_alloc_page_count > 0
 GROUP BY Su.session_id
 ORDER BY [user_objects_alloc_page_count_MB] desc, Su.session_id;
@@ -54,7 +58,7 @@ SELECT
 	,[session_id] = SU.session_id
 	,[login_name] = MAX(S.login_name)
 	,[database_id] = MAX(S.database_id)
-	,[database_name] = MAX(DB_NAME(S.database_id))
+	,[database_name] = MAX(D.name)
 	,[elastic_pool_name] = MAX(DSO.elastic_pool_name)
 	,[internal_objects_alloc_page_count_MB] = SUM(SU.internal_objects_alloc_page_count) * 8 / 1024.0
 	,[user_objects_alloc_page_count_MB] = SUM(SU.user_objects_alloc_page_count) * 8 / 1024.0
@@ -63,6 +67,12 @@ LEFT JOIN sys.dm_exec_sessions S
         ON SU.session_id = S.session_id
 LEFT JOIN sys.database_service_objectives DSO
         ON S.database_id = DSO.database_id
+LEFT JOIN sys.databases D
+	ON S.database_id = D.database_id
 WHERE internal_objects_alloc_page_count + user_objects_alloc_page_count > 0
 GROUP BY SU.session_id
 ORDER BY [user_objects_alloc_page_count_MB] desc, session_id;
+
+SELECT database_id, name FROM sys.databases
+
+
