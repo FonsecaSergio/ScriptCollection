@@ -2,53 +2,61 @@
 Author: Sergio Fonseca
 Twitter @FonsecaSergio
 Email: sergio.fonseca@microsoft.com
-Last Update Date: 2020-04-06
+Last Update Date: 2020-09-01
 ************************************************/
--- Determining the Amount of Free Space in TempDB
-SELECT 
-  SUM(unallocated_extent_page_count) AS [free pages],
-	(SUM(unallocated_extent_page_count) * 1.0 / 128) AS [free space in MB]
-FROM tempdb.sys.dm_db_file_space_usage;
 
--- Determining the Amount of Space Used
+-- Determining the Amount of Space Used  / free
 SELECT 
-  SUM(internal_object_reserved_page_count) AS [internal object pages used],
-	(SUM(internal_object_reserved_page_count) * 1.0 / 128) AS [internal object space in MB],
-	SUM(user_object_reserved_page_count) AS [user object pages used],
-	(SUM(user_object_reserved_page_count) * 1.0 / 128) AS [user object space in MB],
-	SUM(version_store_reserved_page_count) AS [version store pages used],
-	(SUM(version_store_reserved_page_count) * 1.0 / 128) AS [version store space in MB]
-FROM tempdb.sys.dm_db_file_space_usage;
+	 [Source] = 'database_files'
+	,[TEMPDB_max_size_MB] = SUM(max_size) * 8 / 1027.0
+	,[TEMPDB_current_size_MB] = SUM(size) * 8 / 1027.0
+	,[FileCount] = COUNT(FILE_ID)
+FROM tempdb.sys.database_files
+WHERE type = 0 --ROWS
+
+SELECT 
+	 [Source] = 'dm_db_file_space_usage'
+	,[free_space_MB] = SUM(U.unallocated_extent_page_count) * 8 / 1024.0
+	,[used_space_MB] = SUM(U.internal_object_reserved_page_count + U.user_object_reserved_page_count + U.version_store_reserved_page_count) * 8 / 1024.0
+    ,[internal_object_space_MB] = SUM(U.internal_object_reserved_page_count) * 8 / 1024.0
+    ,[user_object_space_MB] = SUM(U.user_object_reserved_page_count) * 8 / 1024.0
+    ,[version_store_space_MB] = SUM(U.version_store_reserved_page_count) * 8 / 1024.0
+FROM tempdb.sys.dm_db_file_space_usage U
 
 -- Obtaining the space consumed currently in each session
 SELECT 
-  Su.session_id,
-	MAX(DSO.elastic_pool_name) AS elastic_pool_name,
-	MAX(DB_NAME(S.database_id)) AS database_name,
-	SUM(internal_objects_alloc_page_count) AS internal_objects_alloc_page_count,
-	SUM(internal_objects_alloc_page_count) * 1.0 / 128 AS internal_objects_alloc_page_count_MB,
-	SUM(user_objects_alloc_page_count) AS user_objects_alloc_page_count,
-	SUM(user_objects_alloc_page_count) * 1.0 / 128 AS user_objects_alloc_page_count_MB
+	 [Source] = 'dm_db_session_space_usage'
+	,[session_id] = Su.session_id
+	,[database_id] = MAX(S.database_id)
+	,[database_name] = MAX(DB_NAME(S.database_id))
+	,[elastic_pool_name] = MAX(DSO.elastic_pool_name)
+	,[internal_objects_alloc_page_count_MB] = SUM(internal_objects_alloc_page_count) * 8 / 1024.0
+	,[user_objects_alloc_page_count_MB] = SUM(user_objects_alloc_page_count) * 8 / 1024.0
 FROM tempdb.sys.dm_db_session_space_usage SU
-LEFT JOIN sys.dm_exec_sessions S ON SU.session_id = S.session_id
-LEFT JOIN sys.database_service_objectives DSO ON S.database_id = DSO.database_id
+LEFT JOIN sys.dm_exec_sessions S
+        ON SU.session_id = S.session_id
+LEFT JOIN sys.database_service_objectives DSO
+        ON S.database_id = DSO.database_id
 WHERE internal_objects_alloc_page_count + user_objects_alloc_page_count > 0
 GROUP BY Su.session_id
-ORDER BY user_objects_alloc_page_count DESC,
-	Su.session_id;
+ORDER BY [user_objects_alloc_page_count_MB] desc, Su.session_id;
 
-SELECT *
-FROM sys.database_service_objectives DSO
 
 -- Obtaining the space consumed in all currently running tasks in each session
 SELECT 
-  session_id,
-	SUM(internal_objects_alloc_page_count) AS internal_objects_alloc_page_count,
-	SUM(internal_objects_alloc_page_count) * 1.0 / 128 AS internal_objects_alloc_page_count_MB,
-	SUM(user_objects_alloc_page_count) AS user_objects_alloc_page_count,
-	SUM(user_objects_alloc_page_count) * 1.0 / 128 AS user_objects_alloc_page_count_MB
-FROM tempdb.sys.dm_db_task_space_usage
+	 [Source] = 'dm_db_task_space_usage'
+	,[session_id] = SU.session_id
+	,[login_name] = MAX(S.login_name)
+	,[database_id] = MAX(S.database_id)
+	,[database_name] = MAX(DB_NAME(S.database_id))
+	,[elastic_pool_name] = MAX(DSO.elastic_pool_name)
+	,[internal_objects_alloc_page_count_MB] = SUM(SU.internal_objects_alloc_page_count) * 8 / 1024.0
+	,[user_objects_alloc_page_count_MB] = SUM(SU.user_objects_alloc_page_count) * 8 / 1024.0
+FROM tempdb.sys.dm_db_task_space_usage SU
+LEFT JOIN sys.dm_exec_sessions S
+        ON SU.session_id = S.session_id
+LEFT JOIN sys.database_service_objectives DSO
+        ON S.database_id = DSO.database_id
 WHERE internal_objects_alloc_page_count + user_objects_alloc_page_count > 0
-GROUP BY session_id
-ORDER BY user_objects_alloc_page_count DESC,
-	session_id;
+GROUP BY SU.session_id
+ORDER BY [user_objects_alloc_page_count_MB] desc, session_id;
