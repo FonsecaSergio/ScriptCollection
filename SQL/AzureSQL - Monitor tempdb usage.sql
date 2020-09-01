@@ -1,3 +1,8 @@
+DROP TABLE IF EXISTS ##TEMP_COLUMNS 
+GO
+SELECT * INTO ##TEMP_COLUMNS 
+FROM sys.columns
+
 /************************************************
 Author: Sergio Fonseca
 Twitter @FonsecaSergio
@@ -27,6 +32,7 @@ FROM tempdb.sys.dm_db_file_space_usage U
 SELECT 
 	 [Source] = 'dm_db_session_space_usage'
 	,[session_id] = Su.session_id
+	,[login_name] = MAX(S.login_name)
 	,[database_id] = MAX(S.database_id)
 	,[database_name] = MAX(DB_NAME(S.database_id))
 	,[elastic_pool_name] = MAX(DSO.elastic_pool_name)
