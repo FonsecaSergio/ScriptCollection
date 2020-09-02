@@ -48,8 +48,6 @@ LEFT JOIN sys.database_service_objectives DSO
 LEFT JOIN sys.databases D
 	ON S.database_id = D.database_id
 WHERE internal_objects_alloc_page_count + user_objects_alloc_page_count > 0
---	AND login_name NOT LIKE '##%' 
---	AND login_name NOT LIKE '%\%'
 GROUP BY Su.session_id
 ORDER BY [user_objects_alloc_page_count_MB] desc, Su.session_id;
 
@@ -73,10 +71,44 @@ LEFT JOIN sys.database_service_objectives DSO
 LEFT JOIN sys.databases D
 	ON S.database_id = D.database_id
 WHERE internal_objects_alloc_page_count + user_objects_alloc_page_count > 0
-AND S.login_name != 'sa'
 GROUP BY SU.session_id
 ORDER BY [user_objects_alloc_page_count_MB] desc, session_id;
 
-SELECT database_id, name FROM sys.databases
+--SELECT database_id, name FROM sys.databases
 
+/**********************************************************************************/
+SELECT 
+	 [Source] = 'database_transactions'
+	,[session_id] = ST.session_id
+	,[transaction_id] = ST.transaction_id
+	,[database_id] = DT.database_id
+	,[database_name] = CASE
+		WHEN D.name IS NULL AND DT.database_id = 2 THEN 'TEMPDB'
+		ELSE D.name
+	 END
+	,[database_transaction_log_used_Kb] = CONVERT(numeric(18,2), DT.database_transaction_log_bytes_used / 1024.0 )
+	,[database_transaction_begin_time] = DT.database_transaction_begin_time
+	,[transaction_type_desc] = CASE database_transaction_type
+		WHEN 1 THEN 'Read/write transaction'
+		WHEN 2 THEN 'Read-only transaction'
+		WHEN 3 THEN 'System transaction'
+		WHEN 4 THEN 'Distributed transaction'
+	END
+	,[transaction_state_desc] = CASE database_transaction_state
+		WHEN 0 THEN 'The transaction has not been completely initialized yet'
+		WHEN 1 THEN 'The transaction has been initialized but has not started'
+		WHEN 2 THEN 'The transaction is active'
+		WHEN 3 THEN 'The transaction has ended. This is used for read-only transactions'
+		WHEN 4 THEN 'The commit process has been initiated on the distributed transaction. This is for distributed transactions only. The distributed transaction is still active but further processing cannot take place'
+		WHEN 5 THEN 'The transaction is in a prepared state and waiting resolution.'
+		WHEN 6 THEN 'The transaction has been committed'
+		WHEN 7 THEN 'The transaction is being rolled back'
+		WHEN 8 THEN 'The transaction has been rolled back'
+	END
+FROM sys.dm_tran_database_transactions DT
+INNER JOIN sys.dm_tran_session_transactions ST
+	ON DT.transaction_id = ST.transaction_id
+LEFT JOIN sys.databases D
+	ON DT.database_id = D.database_id
+ORDER BY ST.session_id
 
