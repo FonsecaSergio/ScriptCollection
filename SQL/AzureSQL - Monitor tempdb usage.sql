@@ -12,6 +12,8 @@ SELECT * INTO ##TEMP_COLUMNS
 FROM sys.columns
 */
 
+SELECT * FROM [sys].[database_service_objectives] DSO
+
 -- Determining the Amount of Space Used  / free
 SELECT 
 	 [Source] = 'database_files'
