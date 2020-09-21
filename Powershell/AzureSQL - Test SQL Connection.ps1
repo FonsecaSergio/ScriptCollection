@@ -20,7 +20,7 @@ $connectionString = "Server=tcp:$DatabaseServer;Initial Catalog=$Database;Persis
 $connection = New-Object -TypeName System.Data.SqlClient.SqlConnection($connectionString)
 $connection.StatisticsEnabled = 1 
 
-Write-Host "CurrentTime: $(((Get-Date).ToUniversalTime()).ToString("yyyy-MM-dd hh:mm:ss")) UTC"
+Write-Host "CurrentTime: $(((Get-Date).ToUniversalTime()).ToString("yyyy-MM-dd HH:mm:ss")) UTC"
 Write-Host "Connection to Server ($($DatabaseServer)) / DB ($($Database)) / UserName ($($Username))"
 
 Try{
