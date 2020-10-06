@@ -18,7 +18,7 @@ $DaysToLook = -2
 
 #$MetricName = "dtu_consumption_percent"
 #$MetricName = "dtu_used"
-#$MetricName = "dtu_limit"
+$MetricName = "dtu_limit"
 #$MetricName = @("dtu_used", "dtu_limit")
 
 ################################################
