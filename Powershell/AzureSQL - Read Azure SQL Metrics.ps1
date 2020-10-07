@@ -15,11 +15,10 @@ $ResourceGroup = "CSSAzureDB"
 $ServerName = "fonsecanet"
 $DBName = "sandbox"
 $DaysToLook = -2
+$TimeGrain = [TimeSpan]::Parse("00:05:00")
 
 #$MetricName = "dtu_consumption_percent"
-#$MetricName = "dtu_used"
-#$MetricName = "dtu_limit"
-$MetricName = @("dtu_used", "dtu_limit")
+$MetricName = @("dtu_used", "dtu_limit", "dtu_consumption_percent")
 
 ################################################
 #CONNECT TO AZURE
@@ -44,13 +43,11 @@ else
 $SubscriptionID = $Subscription.Id
 $MonitorParameters = @{
   ResourceId = "/subscriptions/$($SubscriptionID)/resourceGroups/$($ResourceGroup)/providers/Microsoft.Sql/servers/$($ServerName)/databases/$($DBName)"
-  TimeGrain = [TimeSpan]::Parse("00:05:00")
+  TimeGrain = $TimeGrain
   MetricNames = $MetricName
   StartTime = (Get-Date).AddDays($DaysToLook)
 }
 $Metrics = Get-AzMetric @MonitorParameters -DetailedOutput
-#$Metrics.Data | Out-GridView
-
 
 foreach ($Metric in $Metrics)
 {
