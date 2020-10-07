@@ -2,7 +2,7 @@
 Author: Sergio Fonseca
 Twitter @FonsecaSergio
 Email: sergio.fonseca@microsoft.com
-Last Update Date: 2020-10-06
+Last Update Date: 2020-10-07
 ################################################
 Script to read Azure SQL DB Metrics 
 https://docs.microsoft.com/en-us/azure/azure-sql/database/scripts/monitor-and-scale-database-powershell
@@ -18,8 +18,8 @@ $DaysToLook = -2
 
 #$MetricName = "dtu_consumption_percent"
 #$MetricName = "dtu_used"
-$MetricName = "dtu_limit"
-#$MetricName = @("dtu_used", "dtu_limit")
+#$MetricName = "dtu_limit"
+$MetricName = @("dtu_used", "dtu_limit")
 
 ################################################
 #CONNECT TO AZURE
@@ -49,6 +49,13 @@ $MonitorParameters = @{
   StartTime = (Get-Date).AddDays($DaysToLook)
 }
 $Metrics = Get-AzMetric @MonitorParameters -DetailedOutput
-$Metrics.Data
+#$Metrics.Data | Out-GridView
+
+
+foreach ($Metric in $Metrics)
+{
+    $Resuts += $Metric.Data | Select TimeStamp, Average, @{Name="Metric"; Expression={$Metric.Name.Value}}
+}
 ################################################
 
+$Resuts | Sort-Object -Property TimeStamp, Metric | Format-Table
