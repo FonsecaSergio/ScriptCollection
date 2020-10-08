@@ -10,10 +10,10 @@ https://docs.microsoft.com/en-us/azure/azure-monitor/platform/metrics-supported#
 https://docs.microsoft.com/en-us/powershell/module/az.monitor/get-azmetric?view=azps-4.7.0
 ################################################>
 
-$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
-$ResourceGroup = "CSSAzureDB"
-$ServerName = "fonsecanet"
-$DBName = "sandbox"
+$SubscriptionName = "Microsoft Azure Subscription"
+$ResourceGroup = "ResGroup"
+$ServerName = "Server"
+$DBName = "DBName"
 $DaysToLook = -2
 $TimeGrain = [TimeSpan]::Parse("00:05:00")
 
