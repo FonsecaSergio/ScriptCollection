@@ -1,4 +1,24 @@
-﻿Import-Module Az.Accounts
+﻿<#   
+.SYNOPSIS   
+    
+   
+.DESCRIPTION   
+    
+ 
+.PARAMETER SqlServerName  
+       
+.PARAMETER DatabaseName   
+ 
+    
+.EXAMPLE   
+   
+.NOTES   
+    Author: Sergio Fonseca
+    Last Updated: 2020-11-26
+#> 
+
+##########################################################################################################################################################
+Import-Module Az.Accounts
 Import-Module Az.Sql
 Import-Module Az.Resources
 Import-Module Az.Compute
@@ -49,116 +69,60 @@ Write-Host ($ResourceGroups | Select ResourceGroupName | Out-String) -Foreground
 
 
 ##########################################################################################################################################################
-#Get Synapse Resources
+#Get SQL Resources
 ##########################################################################################################################################################
 Write-Host "---------------------------------------------------------------------------------------------------" -ForegroundColor Gray
-Write-Host "Synapse RESOURCES" -ForegroundColor DarkCyan
+Write-Host "Get SQL RESOURCES" -ForegroundColor DarkCyan
 Write-Host "---------------------------------------------------------------------------------------------------" -ForegroundColor Gray
 
 [System.Collections.ArrayList]$AzureResources = @()
-
-$AzureResources = @(Get-AzResource)
-
-$AzureResources = @($AzureResources | Where-Object {$_.Type -eq "Microsoft.Sql/servers/databases"})
-
-foreach ($AzureResource in $AzureResources)
-{
-        Write-Host ("--> Type ($($AzureResource.Type)) / Res Group ($($AzureResource.ResourceGroupName)) / Name ($($AzureResource.Name))") -ForegroundColor Gray
-        Write-Verbose "--> ResourceId ($($AzureResource.ResourceId))"
-        Write-Verbose ("")
-}
-
-
-##########################################################################################################################################################
-#Get Databases
-##########################################################################################################################################################
-Write-Host "---------------------------------------------------------------------------------------------------" -ForegroundColor Gray
-Write-Host "Get Databases" -ForegroundColor DarkCyan
-Write-Host "---------------------------------------------------------------------------------------------------" -ForegroundColor Gray
 [System.Collections.ArrayList]$AzureDatabases = @()
 [System.Collections.ArrayList]$AzureDatabasesDW = @()
 
+$AzureResources = @(Get-AzResource)
 $AzureDatabases = @($AzureResources | Where-Object {$_.Type -eq "Microsoft.Sql/servers/databases"})
+
+
+##########################################################################################################################################################
+#Check Synapse Resources
+##########################################################################################################################################################
+Write-Host "---------------------------------------------------------------------------------------------------" -ForegroundColor Gray
+Write-Host "Check Synapse Resources" -ForegroundColor DarkCyan
+Write-Host "---------------------------------------------------------------------------------------------------" -ForegroundColor Gray
 
 foreach ($database in $AzureDatabases)
 {
     $ServerName = ($database.Name -split '/')[0]
     $DatabaseName = ($database.Name -split '/')[1]
 
-    if ($DatabaseName -eq "master")
-    {
-        Write-Host "DB ($($database.Name)) is master - Ignore" -ForegroundColor Yellow
-        $AzureDatabasesToIgnore += $database.ResourceId
-    }
-    else
+    if ($DatabaseName -ne "master")
     {
         $databaseObject = Get-AzSqlDatabase -ResourceGroupName $database.ResourceGroupName -ServerName $ServerName -DatabaseName $DatabaseName
-        
-        
 
         #Database basic are cheap - Ignore
-        if ($databaseObject.SkuName -ne "DataWarehouse")
+        if ($databaseObject.SkuName -eq "DataWarehouse") 
         {
-            $AzureDatabasesDW += $database.ResourceId
+            $AzureDatabasesDW += $database
 
-            Write-Host "Server($($ServerName)) / DB ($($DatabaseName)) / SkuName $($databaseObject.SkuName)" -ForegroundColor Red
+            #$databaseObject
+
+            if ($databaseObject.Status -eq "Paused")
+            {
+                Write-Host "Server($($ServerName)) / DB ($($DatabaseName)) / SkuName $($databaseObject.SkuName) / Status($($databaseObject.Status))" -ForegroundColor Green
+            }
+            elseif ($databaseObject.Status -eq "Online")
+            {
+                Write-Host "Server($($ServerName)) / DB ($($DatabaseName)) / SkuName $($databaseObject.SkuName) / Status($($databaseObject.Status))" -ForegroundColor Red
+                Write-Host "Pausing ..." -ForegroundColor Red
+
+                $databaseObject | Suspend-AzSqlDatabase
+            }
+            else
+            {
+                Write-Host "Server($($ServerName)) / DB ($($DatabaseName)) / SkuName $($databaseObject.SkuName) / Status($($databaseObject.Status))" -ForegroundColor Yellow
+            }
+            
         }
-
     }
 }
-
-
-$AzureResources = @($AzureResources | Where-Object {$_.ResourceId -in $AzureDatabasesToIgnore})
-
-Write-Host "Removed ($($AzureDatabasesToIgnore.Count) / $($AzureDatabases.Count)) databases" -ForegroundColor Gray
-Write-Host ""
-
-
 ##########################################################################################################################################################
-$AzureResources
-
-
-
-##########################################################################################################################################################
-#ALERTS
-##########################################################################################################################################################
-<#
-[System.Collections.ArrayList]$ResourcesAlert = @()
-if (($AzureResources | Select Type, ResourceGroupName, Name | Out-String).Length -gt 0)
-{
-    foreach ($AzureResource in @($AzureResources | Select Type, ResourceGroupName, Name))
-    {
-        $ResourcesAlert.Add($AzureResource) | Out-Null
-    }
-}
-
-if($ResourcesAlert.Count -ge 1)
-{
-    Write-Host "---------------------------------------------------------------------------------------------------" -ForegroundColor Red
-    Write-Host "Check this resources" -ForegroundColor Red
-    Write-Host "---------------------------------------------------------------------------------------------------" -ForegroundColor Red
-    Write-Host ($AzureResources | Select Type, ResourceGroupName, Name | Out-String) -ForegroundColor Red
-    Write-Host "---------------------------------------------------------------------------------------------------" -ForegroundColor Red
-
-    Write-Host "## Send Alert ##" -ForegroundColor Red
-
-    $NotificationText = "$($ResourcesAlert.Count) PAYING Resources"
-    
-    Add-Type -AssemblyName System.Windows.Forms 
-    $global:balloon = New-Object System.Windows.Forms.NotifyIcon
-    $path = (Get-Process -id $pid).Path
-    $balloon.Icon = [System.Drawing.Icon]::ExtractAssociatedIcon($path) 
-    $balloon.BalloonTipIcon = [System.Windows.Forms.ToolTipIcon]::Warning
-    $balloon.BalloonTipTitle = "Attention AZURE Resource Alert" 
-    $balloon.BalloonTipText = $NotificationText
-    $balloon.Visible = $true 
-    $balloon.ShowBalloonTip(5000)
-
-    Write-Error -Message ($NotificationText) 
-}
-else
-{
-    Write-Host "## No issues ##" -ForegroundColor Green
-}
-
-#>
