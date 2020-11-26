@@ -12,7 +12,7 @@ if ($Context -eq $null) {
 }
 else
 {
-    Write-Host "Login was done"
+    Write-Host "Context exists"
     Write-Host "Current credential is $($Context.Account.Id)"
     $Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -WarningAction Ignore
     Select-AzSubscription -Subscription $Subscription.Id | Out-Null

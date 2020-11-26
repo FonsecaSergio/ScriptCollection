@@ -35,7 +35,7 @@ SELECT * FROM sys.dm_pdw_nodes_exec_text_query_plan
 
 select * from sys.pdw_replicated_table_cache_state
 
-SELECT * FROM sys.dm_pdw_exec_requests order by submit_time >= DATEADD(hour, -2, sysdatetime())
+SELECT * FROM sys.dm_pdw_exec_requests WHERE submit_time >= DATEADD(hour, -2, sysdatetime()) order by submit_time desc
 SELECT * FROM sys.dm_pdw_exec_requests WHERE request_id = 'QID7121'
 SELECT * FROM sys.dm_pdw_request_steps WHERE request_id = 'QID7121'
 SELECT * FROM sys.dm_pdw_sql_requests WHERE request_id = 'QID7121'
