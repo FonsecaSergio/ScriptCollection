@@ -1,4 +1,20 @@
-﻿#https://techcommunity.microsoft.com/t5/azure-database-support-blog/using-managed-service-identity-msi-to-authenticate-on-azure-sql/ba-p/1288248
+﻿<#   
+.NOTES     
+    Author: Sergio Fonseca
+    Twitter @FonsecaSergio
+    Email: sergio.fonseca@microsoft.com
+    Last Updated: 2021-xx-xx
+
+.SYNOPSIS   
+   
+.DESCRIPTION    
+ 
+.PARAMETER xxxx 
+       
+#> 
+
+
+#https://techcommunity.microsoft.com/t5/azure-database-support-blog/using-managed-service-identity-msi-to-authenticate-on-azure-sql/ba-p/1288248
 
 #CREATE USER [VMSQLCLient] from EXTERNAL PROVIDER
 #ALTER ROLE db_datareader ADD MEMBER [VMSQLCLient]

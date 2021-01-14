@@ -1,10 +1,19 @@
-﻿<############################################
-Author: Sergio Fonseca
-Twitter @FonsecaSergio
-Email: sergio.fonseca@microsoft.com
-Last Update Date: 2020-09-03
+﻿<#   
+.NOTES   
+    Author: Sergio Fonseca
+    Twitter @FonsecaSergio
+    Email: sergio.fonseca@microsoft.com
+    Last Update Date: 2020-09-03
 
-# Script created based on https://docs.microsoft.com/en-us/sql/relational-databases/backup-restore/sql-server-backup-to-url?view=sql-server-ver15#SAS
+.SYNOPSIS   
+   
+.DESCRIPTION    
+    # Script created based on https://docs.microsoft.com/en-us/sql/relational-databases/backup-restore/sql-server-backup-to-url?view=sql-server-ver15#SAS 
+
+.PARAMETER xxxx 
+       
+#> 
+
 ############################################>
 Clear-Host
 

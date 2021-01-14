@@ -1,3 +1,19 @@
+<#   
+.NOTES     
+    Author: Sergio Fonseca
+    Twitter @FonsecaSergio
+    Email: sergio.fonseca@microsoft.com
+    Last Updated: 2021-xx-xx
+
+.SYNOPSIS   
+   
+.DESCRIPTION    
+ 
+.PARAMETER xxxx 
+       
+#> 
+
+
 Clear-Host
 Import-Module Az
 

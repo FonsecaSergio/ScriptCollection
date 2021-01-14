@@ -1,10 +1,24 @@
-﻿#NETSTAT ON POWERSHELL
-# netstat -aonpb tcp
+﻿<#   
+.NOTES     
+    Author: Sergio Fonseca
+    Twitter @FonsecaSergio
+    Email: sergio.fonseca@microsoft.com
+    Last Updated: 2021-xx-xx
 
-#https://sysnetdevops.com/2017/04/24/exploring-the-powershell-alternative-to-netstat/
+.SYNOPSIS   
+   
+.DESCRIPTION    
+    #NETSTAT ON POWERSHELL
+    # netstat -aonpb tcp
 
-#Get Properties of object
-#Get-NetTCPConnection | gm
+    #https://sysnetdevops.com/2017/04/24/exploring-the-powershell-alternative-to-netstat/
+
+    #Get Properties of object
+    #Get-NetTCPConnection | gm
+ 
+.PARAMETER xxxx 
+       
+#> 
 
 ################################################################################################################
 ## JOIN https://devblogs.microsoft.com/powershell/join-object/
@@ -253,4 +267,6 @@ Join-Object `
     -Right $Processes `
     -Where {$args[0].OwningProcess -eq $args[1].ID} `
     -LeftProperties "*" `
-    -RightProperties "ProcessName" `    -Type OnlyIfInBoth `    | Out-GridView
+    -RightProperties "ProcessName" `
+    -Type OnlyIfInBoth `
+    | Out-GridView

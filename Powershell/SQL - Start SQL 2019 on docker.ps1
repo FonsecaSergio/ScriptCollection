@@ -1,8 +1,21 @@
-﻿#https://docs.microsoft.com/en-us/sql/linux/quickstart-install-connect-docker?view=sql-server-linux-ver15#pullandrun2019
+﻿<#   
+.NOTES     
+    Author: Sergio Fonseca
+    Twitter @FonsecaSergio
+    Email: sergio.fonseca@microsoft.com
+    Last Updated: 2021-xx-xx
 
-#NEEED TO UPDATE FROM LAST VERSION
-#https://docs.microsoft.com/en-us/sql/linux/quickstart-install-connect-docker?view=sql-server-ver15&pivots=cs1-powershell
+.SYNOPSIS   
+   
+.DESCRIPTION    
+   #https://docs.microsoft.com/en-us/sql/linux/quickstart-install-connect-docker?view=sql-server-linux-ver15#pullandrun2019
 
+   #NEEED TO UPDATE FROM LAST VERSION
+   #https://docs.microsoft.com/en-us/sql/linux/quickstart-install-connect-docker?view=sql-server-ver15&pivots=cs1-powershell
+ 
+.PARAMETER xxxx 
+       
+#> 
 
 ################################################
 #Pull and run the container image

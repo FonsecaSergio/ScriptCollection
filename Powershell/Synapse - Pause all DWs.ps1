@@ -1,16 +1,21 @@
 ﻿<#   
-.SYNOPSIS    
+.NOTES     
+    Author: Sergio Fonseca
+    Twitter @FonsecaSergio
+    Email: sergio.fonseca@microsoft.com
+    Last Updated: 2020-01-13
+
+
+.SYNOPSIS   
    
-.DESCRIPTION   
+.DESCRIPTION    
+    https://docs.microsoft.com/en-us/azure/automation/automation-alert-metric
  
 .PARAMETER SubscriptionName  
-           
-.EXAMPLE   
-   
-.NOTES   
-    Author: Sergio Fonseca
-    Last Updated: 2020-01-13
+       
 #> 
+
+
 
 ##########################################################################################################################################################
 Import-Module Az.Accounts

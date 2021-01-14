@@ -1,17 +1,18 @@
 ﻿<#   
-.SYNOPSIS    
-   
-.DESCRIPTION   
- 
-.PARAMETER SubscriptionName  
-           
-.EXAMPLE   
-   
-.NOTES   
+.NOTES     
     Author: Sergio Fonseca
+    Twitter @FonsecaSergio
+    Email: sergio.fonseca@microsoft.com
     Last Updated: 2020-01-13
 
+
+.SYNOPSIS   
+   
+.DESCRIPTION    
     https://docs.microsoft.com/en-us/azure/automation/automation-alert-metric
+ 
+.PARAMETER SubscriptionName  
+       
 #> 
 
 ##########################################################################################################################################################

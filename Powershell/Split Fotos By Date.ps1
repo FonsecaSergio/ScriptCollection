@@ -1,19 +1,18 @@
 <#   
+.NOTES   
+    Author: Sergio Fonseca (@fonsecasergio)
+    Last Updated: 2021-01-10
+
 .SYNOPSIS   
     Look on images and videos in folder (Paramters folderPath) and 
     copy to folders based on datetake or date creation / date modification
    
-.DESCRIPTION   
-  
+.DESCRIPTION    
  
 .PARAMETER folderPath path where images and videos will be searched
        
 .PARAMETER DEBUG true just simulate process
- 
        
-.NOTES   
-    Author: Sergio Fonseca (@fonsecasergio)
-    Last Updated: 2021-01-10
 #> 
 
 Clear-Host

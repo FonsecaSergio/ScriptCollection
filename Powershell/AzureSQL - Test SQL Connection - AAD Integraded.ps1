@@ -1,4 +1,19 @@
-﻿Clear-Host
+﻿<#   
+.NOTES     
+    Author: Sergio Fonseca
+    Twitter @FonsecaSergio
+    Email: sergio.fonseca@microsoft.com
+    Last Updated: 2021-xx-xx
+
+.SYNOPSIS   
+   
+.DESCRIPTION    
+ 
+.PARAMETER xxxx 
+       
+#> 
+
+Clear-Host
 
 $DatabaseServer = "fonsecanet.database.windows.net,1433"
 $Database = "sandbox"

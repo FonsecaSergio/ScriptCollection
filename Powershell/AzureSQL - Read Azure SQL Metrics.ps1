@@ -1,14 +1,21 @@
-﻿<###############################################
-Author: Sergio Fonseca
-Twitter @FonsecaSergio
-Email: sergio.fonseca@microsoft.com
-Last Update Date: 2020-10-07
-################################################
-Script to read Azure SQL DB Metrics 
-https://docs.microsoft.com/en-us/azure/azure-sql/database/scripts/monitor-and-scale-database-powershell
-https://docs.microsoft.com/en-us/azure/azure-monitor/platform/metrics-supported#microsoftsqlserversdatabases
-https://docs.microsoft.com/en-us/powershell/module/az.monitor/get-azmetric?view=azps-4.7.0
-################################################>
+﻿<#   
+.NOTES     
+    Author: Sergio Fonseca
+    Twitter @FonsecaSergio
+    Email: sergio.fonseca@microsoft.com
+    Last Update Date: 2020-10-07
+
+.SYNOPSIS   
+   
+.DESCRIPTION    
+    Script to read Azure SQL DB Metrics 
+    https://docs.microsoft.com/en-us/azure/azure-sql/database/scripts/monitor-and-scale-database-powershell
+    https://docs.microsoft.com/en-us/azure/azure-monitor/platform/metrics-supported#microsoftsqlserversdatabases
+    https://docs.microsoft.com/en-us/powershell/module/az.monitor/get-azmetric?view=azps-4.7.0
+ 
+.PARAMETER xxxx 
+       
+#> 
 
 $SubscriptionName = "Microsoft Azure Subscription"
 $ResourceGroup = "ResGroup"
