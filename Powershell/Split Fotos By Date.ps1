@@ -22,7 +22,7 @@ $ErrorActionPreference = "Stop"
 
 Clear-Host
 [string]$folderPath = "D:\OneDrive_Personal\OneDrive\Pictures\Imagens\TEMP\iPhone Sergio"
-[bool]$DEBUG = $true
+[bool]$DEBUG = $false
 
 
 ########################################################################################################

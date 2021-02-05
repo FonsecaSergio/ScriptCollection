@@ -2,28 +2,68 @@
 Author: Sergio Fonseca
 Twitter @FonsecaSergio
 Email: sergio.fonseca@microsoft.com
-Last Update Date: 2020-10-20
+Last Update Date: 2020-10-25
 ************************************************/
 
+SELECT TOP 1000 
+     R.[Request_id]
+    ,Request_queue_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[submit_time],R.[start_time]) / 1000.0)
+    ,Request_compile_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[start_time],R.[end_compile_time]) / 1000.0)
+    ,Request_execution_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[end_compile_time],R.[end_time]) / 1000.0)
+    ,Total_Elapsed_time_sec = CONVERT(numeric(25,2),R.[total_Elapsed_time] / 1000.0)
+    ,Total_Elapsed_time_min = CONVERT(numeric(25,2),R.[total_Elapsed_time] / 1000.0 / 60 )
+    ,nbr_files
+    ,gb_processed
+    ,R.* 
+FROM sys.dm_pdw_exec_requests R
+LEFT JOIN (
+    SELECT 
+        request_id
+        ,count(distinct input_name) as nbr_files
+        ,sum(bytes_processed)/1024/1024/1024 as gb_processed
+    FROM sys.dm_pdw_dms_external_work s
+    GROUP BY s.request_id
+) S
+    ON r.request_id = s.request_id
+WHERE R.session_id <> session_id()
+AND submit_time >= DATEADD(hour, -2, sysdatetime()) 
+--AND request_id >= 'QID657016'
+--AND [label] = 'xxxxxx'
+--AND [label] like 'perf%'
+AND status = 'Running'
+ORDER BY submit_time DESC
+
+GO
+
+SELECT * FROM sys.dm_pdw_exec_requests WHERE request_id = 'QID24455'
+SELECT * FROM sys.dm_pdw_request_steps WHERE request_id = 'QID24455'
+SELECT * FROM sys.dm_pdw_sql_requests WHERE request_id = 'QID24455' AND step_index = 2
+SELECT * FROM sys.dm_pdw_dms_workers WHERE request_id = 'QID24455' AND step_index = 2
+SELECT * FROM sys.dm_pdw_waits WHERE request_id = 'QID24455'
+
+
+--Node perf issue
+SELECT pdw_node_id, distribution_id, avg_total_elapsed_time_sec = avg(total_elapsed_time) / 1000
+FROM sys.dm_pdw_sql_requests 
+WHERE request_id = 'QID24421'
+GROUP BY pdw_node_id, distribution_id
+ORDER BY avg_total_elapsed_time_sec desc
+
+
+
+
+SELECT * FROM sys.dm_pdw_exec_sessions where status <> 'Closed' and session_id <> session_id();
+
+
+
+SELECT * FROM sys.dm_pdw_dms_external_work
+SELECT * FROM sys.dm_pdw_resource_waits
+SELECT * FROM sys.dm_pdw_hadoop_operations
+SELECT * FROM sys.pdw_nodes_column_store_row_groups
 SELECT * FROM sys.external_tables
 SELECT * FROM sys.external_data_sources
 SELECT * FROM sys.external_file_formats
 
--- Other Active Connections
-SELECT * FROM sys.dm_pdw_exec_sessions where status <> 'Closed' and session_id <> session_id();
-
-SELECT * FROM sys.dm_pdw_exec_requests
---QID2557	SID234
-
-SELECT * FROM sys.dm_pdw_request_steps
-SELECT * FROM sys.dm_pdw_sql_requests
-
-SELECT * FROM sys.dm_pdw_dms_workers
-SELECT * FROM sys.dm_pdw_dms_external_work
-SELECT * FROM sys.dm_pdw_waits
-SELECT * FROM sys.dm_pdw_resource_waits
-SELECT * FROM sys.dm_pdw_hadoop_operations
-SELECT * FROM sys.pdw_nodes_column_store_row_groups
 
 --InFlight query
 SELECT * FROM sys.dm_pdw_nodes_exec_sql_text
@@ -32,26 +72,8 @@ SELECT * FROM sys.dm_pdw_nodes_exec_query_profiles
 SELECT * FROM sys.dm_pdw_nodes_exec_query_statistics_xml
 SELECT * FROM sys.dm_pdw_nodes_exec_text_query_plan
 
-
 select * from sys.pdw_replicated_table_cache_state
 
-SELECT * FROM sys.dm_pdw_exec_requests WHERE submit_time >= DATEADD(hour, -2, sysdatetime()) order by submit_time desc
-SELECT * FROM sys.dm_pdw_exec_requests WHERE request_id = 'QID7121'
-SELECT * FROM sys.dm_pdw_request_steps WHERE request_id = 'QID7121'
-SELECT * FROM sys.dm_pdw_sql_requests WHERE request_id = 'QID7121'
-SELECT * FROM sys.dm_pdw_dms_workers WHERE request_id = 'QID7121'
-SELECT * FROM sys.dm_pdw_waits WHERE request_id = 'QID2557'
-
---Node perf issue
-SELECT pdw_node_id, distribution_id, avg(total_elapsed_time) 
-FROM sys.dm_pdw_sql_requests 
-WHERE request_id = 'QID2557'
-GROUP BY pdw_node_id, distribution_id
-
---Actual plan DSQL
-SELECT * 
-FROM sys.dm_pdw_request_steps
-WHERE request_id = 'QID2557'
 
 
 SELECT * 
@@ -67,16 +89,6 @@ JOIN sys.dm_pdw_dms_external_work e
 
 ---------------------------------------------------------------
 https://docs.microsoft.com/en-us/azure/synapse-analytics/sql-data-warehouse/analyze-your-workload
-SELECT  r.[request_id]                           AS Request_ID
-,       r.[status]                               AS Request_Status
-,       r.[submit_time]                          AS Request_SubmitTime
-,       r.[start_time]                           AS Request_StartTime
-,       DATEDIFF(ms,[submit_time],[start_time])  AS Request_InitiateDuration_ms
-,       r.resource_class                         AS Request_resource_class
-FROM    sys.dm_pdw_exec_requests r
-;
-
-
 SELECT  ro.[name]           AS [db_role_name]
 FROM    sys.database_principals ro
 WHERE   ro.[type_desc]      = 'DATABASE_ROLE'
@@ -145,55 +157,19 @@ WHERE    [session_id] <> SESSION_ID()
 
 
 
-
-
-
-
-
-
-
 ---------------------------------------------------------------
 https://docs.microsoft.com/en-us/azure/synapse-analytics/sql-data-warehouse/sql-data-warehouse-manage-monitor#monitor-query-execution
-
--- Monitor active queries
-SELECT *
-FROM sys.dm_pdw_exec_requests
-WHERE status not in ('Completed','Failed','Cancelled')
-  AND session_id <> session_id()
-ORDER BY submit_time DESC;
 
 -- Find top 10 queries longest running queries
 SELECT TOP 10 *
 FROM sys.dm_pdw_exec_requests
 ORDER BY total_elapsed_time DESC;
-
--- Find the distributed query plan steps for a specific query.
--- Replace request_id with value from Step 1.
-
-SELECT * FROM sys.dm_pdw_request_steps
-WHERE request_id = 'QID####'
-ORDER BY step_index;
-
--- Find the distribution run times for a SQL step.
--- Replace request_id and step_index with values from Step 1 and 3.
-
-SELECT * FROM sys.dm_pdw_sql_requests
-WHERE request_id = 'QID####' AND step_index = 2;
 
 -- Find the SQL Server execution plan for a query running on a specific SQL pool or control node.
 -- Replace distribution_id and spid with values from previous query.
 
 DBCC PDW_SHOWEXECUTIONPLAN(1, 78);
 
--- Find information about all the workers completing a Data Movement Step.
--- Replace request_id and step_index with values from Step 1 and 3.
-
-SELECT * FROM sys.dm_pdw_dms_workers
-WHERE request_id = 'QID####' AND step_index = 2;
-
--- Find queries
--- Replace request_id with value from Step 1.
-
 SELECT waits.session_id,
       waits.request_id,  
       requests.command,
@@ -211,99 +187,7 @@ ORDER BY waits.object_name, waits.object_type, waits.state;
 
 ---------------------------------------------------------------
 
--- Monitor active queries
-SELECT *
-FROM sys.dm_pdw_exec_requests
-WHERE status not in ('Completed','Failed','Cancelled')
-  AND session_id <> session_id()
-ORDER BY submit_time DESC;
 
--- Find top 10 queries longest running queries
-SELECT TOP 10 *
-FROM sys.dm_pdw_exec_requests
-ORDER BY total_elapsed_time DESC;
----------------------------------------------------------------
--- Query with Label
-SELECT *
-FROM sys.tables
-OPTION (LABEL = 'My Query')
-;
-
--- Find a query with the Label 'My Query'
--- Use brackets when querying the label column, as it it a key word
-SELECT  *
-FROM    sys.dm_pdw_exec_requests
-WHERE   [label] = 'My Query';
----------------------------------------------------------------
--- Find the distributed query plan steps for a specific query.
--- Replace request_id with value from Step 1.
-
-SELECT * FROM sys.dm_pdw_request_steps
-WHERE request_id = 'QID####'
-ORDER BY step_index;
----------------------------------------------------------------
--- Find the distribution run times for a SQL step.
--- Replace request_id and step_index with values from Step 1 and 3.
-
-SELECT * FROM sys.dm_pdw_sql_requests
-WHERE request_id = 'QID####' AND step_index = 2;
----------------------------------------------------------------
--- Find information about all the workers completing a Data Movement Step.
--- Replace request_id and step_index with values from Step 1 and 3.
-
-SELECT * FROM sys.dm_pdw_dms_workers
-WHERE request_id = 'QID####' AND step_index = 2;
----------------------------------------------------------------
--- Find the SQL Server estimated plan for a query running on a specific SQL pool Compute or control node.
--- Replace distribution_id and spid with values from previous query.
-
-DBCC PDW_SHOWEXECUTIONPLAN(55, 238);
----------------------------------------------------------------
--- Find queries
--- Replace request_id with value from Step 1.
-
-SELECT waits.session_id,
-      waits.request_id,  
-      requests.command,
-      requests.status,
-      requests.start_time,  
-      waits.type,
-      waits.state,
-      waits.object_type,
-      waits.object_name
-FROM   sys.dm_pdw_waits waits
-   JOIN  sys.dm_pdw_exec_requests requests
-   ON waits.request_id=requests.request_id
-WHERE waits.request_id = 'QID####'
-ORDER BY waits.object_name, waits.object_type, waits.state;
----------------------------------------------------------------
--- Monitor tempdb
-SELECT
-    sr.request_id,
-    ssu.session_id,
-    ssu.pdw_node_id,
-    sr.command,
-    sr.total_elapsed_time,
-    es.login_name AS 'LoginName',
-    DB_NAME(ssu.database_id) AS 'DatabaseName',
-    (es.memory_usage * 8) AS 'MemoryUsage (in KB)',
-    (ssu.user_objects_alloc_page_count * 8) AS 'Space Allocated For User Objects (in KB)',
-    (ssu.user_objects_dealloc_page_count * 8) AS 'Space Deallocated For User Objects (in KB)',
-    (ssu.internal_objects_alloc_page_count * 8) AS 'Space Allocated For Internal Objects (in KB)',
-    (ssu.internal_objects_dealloc_page_count * 8) AS 'Space Deallocated For Internal Objects (in KB)',
-    CASE es.is_user_process
-    WHEN 1 THEN 'User Session'
-    WHEN 0 THEN 'System Session'
-    END AS 'SessionType',
-    es.row_count AS 'RowCount'
-FROM sys.dm_pdw_nodes_db_session_space_usage AS ssu
-    INNER JOIN sys.dm_pdw_nodes_exec_sessions AS es ON ssu.session_id = es.session_id AND ssu.pdw_node_id = es.pdw_node_id
-    INNER JOIN sys.dm_pdw_nodes_exec_connections AS er ON ssu.session_id = er.session_id AND ssu.pdw_node_id = er.pdw_node_id
-    INNER JOIN microsoft.vw_sql_requests AS sr ON ssu.session_id = sr.spid AND ssu.pdw_node_id = sr.pdw_node_id
-WHERE DB_NAME(ssu.database_id) = 'tempdb'
-    AND es.session_id <> @@SPID
-    AND es.login_name <> 'sa'
-ORDER BY sr.request_id;
 ---------------------------------------------------------------
 -- Memory consumption
 SELECT
@@ -343,25 +227,7 @@ SELECT
 FROM sys.dm_pdw_nodes_tran_database_transactions t
 JOIN sys.dm_pdw_nodes nod ON t.pdw_node_id = nod.pdw_node_id
 GROUP BY t.pdw_node_id, nod.[type]
----------------------------------------------------------------
--- To track bytes and files
-SELECT
-    r.command,
-    s.request_id,
-    r.status,
-    count(distinct input_name) as nbr_files,
-    sum(s.bytes_processed)/1024/1024/1024 as gb_processed
-FROM
-    sys.dm_pdw_exec_requests r
-    inner join sys.dm_pdw_dms_external_work s
-        on r.request_id = s.request_id
-GROUP BY
-    r.command,
-    s.request_id,
-    r.status
-ORDER BY
-    nbr_files desc,
-    gb_processed desc;
+
 ---------------------------------------------------------------
 DBCC PDW_SHOWSPACEUSED('[dbo].[FactFinance]');
 ---------------------------------------------------------------
