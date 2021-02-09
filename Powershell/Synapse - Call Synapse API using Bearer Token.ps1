@@ -23,10 +23,33 @@ function Get-AccessToken([string]$TokenAudience) {
 
     return $token
 }
+
+########################################################################################################
+#CONNECT TO AZURE
+
+$Context = Get-AzContext
+
+if ($Context -eq $null) {
+    Write-Information "Need to login"
+    Connect-AzAccount -Subscription $SubscriptionName
+}
+else
+{
+    Write-Host "Context exists"
+    Write-Host "Current credential is $($Context.Account.Id)"
+    if ($Context.Subscription.Name -ne $SubscriptionName) {
+        $Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -WarningAction Ignore
+        Select-AzSubscription -Subscription $Subscription.Id | Out-Null
+        Write-Host "Current subscription is $($Subscription.Name)"
+    }
+    else {
+        Write-Host "Current subscription is $($Context.Subscription.Name)"    
+    }    
+}
+########################################################################################################
+
 # ------------------------------------------
 # get Bearer token for current user for Synapse Workspace API
-
-#Connect-AzAccount
 $token = (Get-AccessToken -TokenAudience "https://dev.azuresynapse.net").AccessToken
 $headers = @{ Authorization = "Bearer $token" }
 
