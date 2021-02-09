@@ -61,7 +61,8 @@ $uri = "https://$workspaceName.dev.azuresynapse.net/"
 $uri += "sqlPools?api-version=2019-06-01-preview"
 
 $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $headers
-$result
+
+Write-Host ($result | ConvertTo-Json)
 
 # with Body
     # https://docs.microsoft.com/rest/api/synapse/data-plane/createroleassignment/createroleassignment
