@@ -8,7 +8,7 @@ Last Update Date: 2020-10-25
 SELECT TOP 1000 
      R.[Request_id]
     ,Request_queue_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[submit_time],R.[start_time]) / 1000.0)
-    ,Request_compile_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[start_time],R.[end_compile_time]) / 1000.0)
+    ,Request_compile_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[end_compile_time],R.[start_time]) / 1000.0)
     ,Request_execution_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[end_compile_time],R.[end_time]) / 1000.0)
     ,Total_Elapsed_time_sec = CONVERT(numeric(25,2),R.[total_Elapsed_time] / 1000.0)
     ,Total_Elapsed_time_min = CONVERT(numeric(25,2),R.[total_Elapsed_time] / 1000.0 / 60 )
@@ -30,7 +30,7 @@ AND submit_time >= DATEADD(hour, -2, sysdatetime())
 --AND request_id >= 'QID657016'
 --AND [label] = 'xxxxxx'
 --AND [label] like 'perf%'
-AND status = 'Running'
+--AND status = 'Running'
 ORDER BY submit_time DESC
 
 GO
@@ -87,7 +87,14 @@ FROM sys.dm_pdw_exec_requests r
 JOIN sys.dm_pdw_dms_external_work e
 	ON r.request_id = e.request_id
 
+
+
 ---------------------------------------------------------------
+
+DBCC PDW_SHOWSPACEUSED('[dbo].[FactFinance]');
+---------------------------------------------------------------
+
+
 https://docs.microsoft.com/en-us/azure/synapse-analytics/sql-data-warehouse/analyze-your-workload
 SELECT  ro.[name]           AS [db_role_name]
 FROM    sys.database_principals ro
@@ -228,8 +235,6 @@ FROM sys.dm_pdw_nodes_tran_database_transactions t
 JOIN sys.dm_pdw_nodes nod ON t.pdw_node_id = nod.pdw_node_id
 GROUP BY t.pdw_node_id, nod.[type]
 
----------------------------------------------------------------
-DBCC PDW_SHOWSPACEUSED('[dbo].[FactFinance]');
 ---------------------------------------------------------------
 CREATE VIEW dbo.vTableSizes
 AS

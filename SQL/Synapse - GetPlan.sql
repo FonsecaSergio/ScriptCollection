@@ -15,28 +15,6 @@ SELECT [FinanceKey]
       ,[Amount]
   FROM [dbo].[FactFinance]
 
- -- CREATE TABLE dbo.FactFinance_RoundRobin
- -- WITH
- -- (
-	--DISTRIBUTION = ROUND_ROBIN
- -- )
- -- AS
- -- SELECT * FROM [dbo].[FactFinance]
-
-
-  SELECT * FROM [dbo].FactFinance_RoundRobin
-
-EXPLAIN
-SELECT * FROM [dbo].[FactFinance] F
-INNER JOIN [dbo].FactFinance_RoundRobin F2
-	ON F.[FinanceKey] = F2.[FinanceKey]
-
-
-
-EXPLAIN
-SELECT SUM([Amount])
-  FROM [dbo].[FactFinance]
-
 ---------------
 
 SET QUERY_DIAGNOSTICS ON
