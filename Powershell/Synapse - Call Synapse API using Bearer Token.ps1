@@ -1,4 +1,5 @@
 $workspaceName = "FonsecanetSynapse"
+$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
 
 # ------------------------------------------
 # these Az modules required
@@ -31,7 +32,8 @@ $Context = Get-AzContext
 
 if ($Context -eq $null) {
     Write-Information "Need to login"
-    Connect-AzAccount -Subscription $SubscriptionName
+    $x = Connect-AzAccount -Subscription $SubscriptionName
+    $SubscriptionId = $x.Context.Subscription.Id
 }
 else
 {
@@ -41,10 +43,12 @@ else
         $Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -WarningAction Ignore
         Select-AzSubscription -Subscription $Subscription.Id | Out-Null
         Write-Host "Current subscription is $($Subscription.Name)"
+        $SubscriptionId = $Subscription.Id
     }
     else {
         Write-Host "Current subscription is $($Context.Subscription.Name)"    
-    }    
+        $SubscriptionId = $Context.Subscription.Id
+    }
 }
 ########################################################################################################
 
