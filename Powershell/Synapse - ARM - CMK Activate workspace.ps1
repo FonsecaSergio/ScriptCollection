@@ -1,11 +1,13 @@
 <#
 ACTIVATE SYNAPSE WORKSPACE
-
 NOT FULLY TESTED
 #>
 
 $workspaceName = "fonsecanetcmk"
 $SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
+$ResourceGroup = "testCMK"
+$keyName = "AzureSQLDBKey"
+$vaultName = "FonsecanetKeyVault"
 
 # ------------------------------------------
 # these Az modules required
@@ -61,9 +63,6 @@ $token = (Get-AccessToken -TokenAudience "https://management.azure.com").AccessT
 $headers = @{ Authorization = "Bearer $token" }
 
 # ------------------------------------------
-$ResourceGroup = "testCMK"
-$keyName = "AzureSQLDBKey"
-$vaultName = "FonsecanetKeyVault"
 $uri = "https://management.azure.com/subscriptions/$SubscriptionID/resourceGroups/$ResourceGroup/providers/Microsoft.Synapse/workspaces/$workspaceName/keys/$($keyName)?api-version=2019-06-01-preview"
 
 $body = @"
