@@ -1,6 +1,5 @@
 <#
 ACTIVATE SYNAPSE WORKSPACE
-NOT FULLY TESTED
 #>
 
 $workspaceName = "fonsecanetcmk"
@@ -35,12 +34,14 @@ function Get-AccessToken([string]$TokenAudience) {
 
 ########################################################################################################
 #CONNECT TO AZURE
+Clear-Host
 
 $Context = Get-AzContext
 
 if ($Context -eq $null) {
     Write-Information "Need to login"
-    Connect-AzAccount -Subscription $SubscriptionName
+    $x = Connect-AzAccount -Subscription $SubscriptionName
+    $SubscriptionId = $x.Context.Subscription.Id
 }
 else
 {
@@ -50,10 +51,12 @@ else
         $Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -WarningAction Ignore
         Select-AzSubscription -Subscription $Subscription.Id | Out-Null
         Write-Host "Current subscription is $($Subscription.Name)"
+        $SubscriptionId = $Subscription.Id
     }
     else {
         Write-Host "Current subscription is $($Context.Subscription.Name)"    
-    }    
+        $SubscriptionId = $Context.Subscription.Id
+    }
 }
 ########################################################################################################
 
@@ -63,15 +66,19 @@ $token = (Get-AccessToken -TokenAudience "https://management.azure.com").AccessT
 $headers = @{ Authorization = "Bearer $token" }
 
 # ------------------------------------------
-$uri = "https://management.azure.com/subscriptions/$SubscriptionID/resourceGroups/$ResourceGroup/providers/Microsoft.Synapse/workspaces/$workspaceName/keys/$($keyName)?api-version=2019-06-01-preview"
+#$uri = "https://management.azure.com/subscriptions/$SubscriptionID/resourceGroups/$ResourceGroup/providers/Microsoft.Synapse/workspaces/$workspaceName/keys/$($keyName)?api-version=2019-06-01-preview"
+$uri = "https://management.azure.com/subscriptions/$SubscriptionID/resourceGroups/$ResourceGroup/providers/Microsoft.Synapse/workspaces/$workspaceName/keys/default?api-version=2019-06-01-preview"
 
 $body = @"
+{
+    "name" : "$keyName",
 "properties": {
-    "keyVaultUrl": "https://$vaultName.vault.azure.net/keys/$keyName"
+    "keyVaultUrl": "https://$vaultName.vault.azure.net/keys/$keyName",
     "isActiveCMK": true
+}
 }
 "@
 
-$result = Invoke-RestMethod -Method Put -ContentType "application/json" -Uri $uri -Headers $headers
+$result = Invoke-RestMethod -Method Put -ContentType "application/json" -Uri $uri -Headers $headers -Body $body
 
 Write-Host ($result | ConvertTo-Json)
