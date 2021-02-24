@@ -1,29 +1,12 @@
 $workspaceName = "FonsecanetSynapse"
 $SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
+$aadUserName = "sefonsec@microsoft.com"
 
 # ------------------------------------------
 # these Az modules required
 # https://docs.microsoft.com/powershell/azure/install-az-ps
 Import-Module Az.Accounts 
-
-# ------------------------------------------
-function Get-AccessToken([string]$TokenAudience) {
-
-    $currentAzureContext = Get-AzContext
-
-    $token = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory.Authenticate( `
-            $currentAzureContext.Account `
-            , $currentAzureContext.Environment `
-            , $currentAzureContext.Tenant.Id `
-            , $null `
-            , [Microsoft.Azure.Commands.Common.Authentication.ShowDialog]::Never `
-            , $null `
-            , $currentAzureContext.TokenCache `
-            , $TokenAudience `
-            )
-
-    return $token
-}
+Import-Module Az.Resources
 
 ########################################################################################################
 #CONNECT TO AZURE
@@ -54,24 +37,33 @@ else
 
 # ------------------------------------------
 # get Bearer token for current user for Synapse Workspace API
-$token = (Get-AccessToken -TokenAudience "https://dev.azuresynapse.net").AccessToken
+$token = (Get-AzAccessToken -Resource "https://dev.azuresynapse.net").Token
 $headers = @{ Authorization = "Bearer $token" }
 
 # ------------------------------------------
-# https://docs.microsoft.com/en-us/rest/api/synapse/data-plane/sqlpools/list
-# GET {endpoint}/sqlPools?api-version=2019-06-01-preview
+# https://docs.microsoft.com/en-us/rest/api/synapse/data-plane/getroledefinitions/getroledefinitions
+# GET {endpoint}/rbac/roles?api-version=2020-02-01-preview
 
 $uri = "https://$workspaceName.dev.azuresynapse.net/"
-$uri += "sqlPools?api-version=2019-06-01-preview"
+$uri += "/rbac/roles?api-version=2020-02-01-preview"
 
 $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $headers
 
 Write-Host ($result | ConvertTo-Json)
 
-# with Body
-    # https://docs.microsoft.com/rest/api/synapse/data-plane/createroleassignment/createroleassignment
-    # POST {endpoint}/rbac/roleAssignments?api-version=2020-02-01-preview
-    #$body = @{ roleId = $workspaceAdminRole; principalId = $principalId; } | ConvertTo-Json -Compress
-    #Invoke-RestMethod -Method Post -ContentType "application/json" -Uri $uri -Headers $headers -Body $body
+<#
+# https://docs.microsoft.com/rest/api/synapse/data-plane/createroleassignment/createroleassignment
+# POST {endpoint}/rbac/roleAssignments?api-version=2020-02-01-preview
 
+# get user AAD id
 
+$uri = "https://$workspaceName.dev.azuresynapse.net/"
+$uri += "/rbac/roleAssignments?api-version=2020-02-01-preview"
+
+$workspaceAdminRole = "6e4bf58a-b8e1-4cc3-bbf9-d73143322b78" #Workspace Admin
+$principalId = (Get-AzADUser -UserPrincipalName $aadUserName).Id
+$body = @{ roleId = $workspaceAdminRole; principalId = $principalId; } | ConvertTo-Json -Compress
+$result = Invoke-RestMethod -Method Post -ContentType "application/json" -Uri $uri -Headers $headers -Body $body
+
+Write-Host ($result | ConvertTo-Json)
+#>

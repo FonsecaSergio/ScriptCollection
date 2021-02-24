@@ -7,6 +7,7 @@ Last Update Date: 2020-10-25
 
 SELECT TOP 1000 
      R.[Request_id]
+	 R.[session_id]
     ,Request_queue_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[submit_time],R.[start_time]) / 1000.0)
     ,Request_compile_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[end_compile_time],R.[start_time]) / 1000.0)
     ,Request_execution_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[end_compile_time],R.[end_time]) / 1000.0)
@@ -92,6 +93,15 @@ JOIN sys.dm_pdw_dms_external_work e
 ---------------------------------------------------------------
 
 DBCC PDW_SHOWSPACEUSED('[dbo].[FactFinance]');
+---------------------------------------------------------------
+
+
+SELECT session_id, login_name, client_id, app_name, sql_spid 
+FROM sys.dm_pdw_exec_sessions
+
+--KILL 'SID6842'
+
+
 ---------------------------------------------------------------
 
 
