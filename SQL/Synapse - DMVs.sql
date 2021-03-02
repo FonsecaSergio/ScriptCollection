@@ -7,7 +7,7 @@ Last Update Date: 2020-10-25
 
 SELECT TOP 1000 
      R.[Request_id]
-	 R.[session_id]
+	,R.[session_id]
     ,Request_queue_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[submit_time],R.[start_time]) / 1000.0)
     ,Request_compile_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[end_compile_time],R.[start_time]) / 1000.0)
     ,Request_execution_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[end_compile_time],R.[end_time]) / 1000.0)
@@ -28,7 +28,7 @@ LEFT JOIN (
     ON r.request_id = s.request_id
 WHERE R.session_id <> session_id()
 AND submit_time >= DATEADD(hour, -2, sysdatetime()) 
---AND request_id >= 'QID657016'
+--AND R.request_id >= 'QID657016'
 --AND [label] = 'xxxxxx'
 --AND [label] like 'perf%'
 --AND status = 'Running'
