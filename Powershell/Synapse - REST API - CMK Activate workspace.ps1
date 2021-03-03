@@ -47,6 +47,7 @@ $token = (Get-AzAccessToken -Resource "https://management.azure.com").Token
 $headers = @{ Authorization = "Bearer $token" }
 # ------------------------------------------
 $uri = "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$resgroup/providers/Microsoft.Synapse/workspaces/$($workspaceName)?api-version=2019-06-01-preview"
+$uri
 $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $headers
 
 $InternalkeyName = $result.properties.encryption.cmk.key.name
@@ -60,16 +61,18 @@ $headers = @{ Authorization = "Bearer $token" }
 
 # ------------------------------------------
 $uri = "https://management.azure.com/subscriptions/$SubscriptionID/resourceGroups/$ResourceGroup/providers/Microsoft.Synapse/workspaces/$workspaceName/keys/$($InternalkeyName)?api-version=2019-06-01-preview"
+$uri
 
 $body = @"
 {
     "name" : "$keyName",
-"properties": {
-    "keyVaultUrl": "https://$vaultName.vault.azure.net/keys/$keyName",
-    "isActiveCMK": true
-}
+    "properties": {
+       "keyVaultUrl": "https://$vaultName.vault.azure.net/keys/$keyName",
+       "isActiveCMK": true
+    }
 }
 "@
+$body
 
 $result = Invoke-RestMethod -Method Put -ContentType "application/json" -Uri $uri -Headers $headers -Body $body
 
