@@ -1,10 +1,20 @@
-<#
-GET SYNAPSE WORKSPACE
-#>
+<#   
+.NOTES     
+    Author: Sergio Fonseca
+    Twitter @FonsecaSergio
+    Email: sergio.fonseca@microsoft.com
+    Last Updated: 2021-03-11
 
-$ResourceGroup = "testCMK"
-$workspaceName = "fonsecanetcmk"
-$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
+.SYNOPSIS   
+   GET SYNAPSE WORKSPACE USING REST API
+
+.DESCRIPTION
+       
+#> 
+
+$ResourceGroup = "ResGroup"
+$workspaceName = "Synapse"
+$SubscriptionId = "de41dc76-xxxxxxx"
 
 # ------------------------------------------
 # these Az modules required
@@ -18,20 +28,19 @@ $Context = Get-AzContext
 
 if ($Context -eq $null) {
     Write-Information "Need to login"
-    Connect-AzAccount -Subscription $SubscriptionName
+    Connect-AzAccount -Subscription $SubscriptionId
 }
 else
 {
     Write-Host "Context exists"
     Write-Host "Current credential is $($Context.Account.Id)"
-    if ($Context.Subscription.Name -ne $SubscriptionName) {
-        $Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -WarningAction Ignore
-        Select-AzSubscription -Subscription $Subscription.Id | Out-Null
-        Write-Host "Current subscription is $($Subscription.Name)"
+    if ($Context.Subscription.Id -ne $SubscriptionId) {
+        $result = Select-AzSubscription -Subscription $SubscriptionId
+        Write-Host "Current subscription is $($result.Subscription.Name)"
     }
     else {
         Write-Host "Current subscription is $($Context.Subscription.Name)"    
-    }    
+    }
 }
 ########################################################################################################
 
