@@ -1,5 +1,19 @@
-$workspaceName = "FonsecanetSynapse"
-$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
+<#   
+.NOTES     
+    Author: Sergio Fonseca
+    Twitter @FonsecaSergio
+    Email: sergio.fonseca@microsoft.com
+    Last Updated: 2021-03-11
+
+.SYNOPSIS   
+   GET SYNAPSE SQL POOLS FROM SYNAPSE DEV ENDPOINT
+
+.DESCRIPTION
+    
+#> 
+
+$workspaceName = "fonsecanetsynapse"
+$SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b"
 
 # ------------------------------------------
 # these Az modules required
@@ -13,22 +27,18 @@ $Context = Get-AzContext
 
 if ($Context -eq $null) {
     Write-Information "Need to login"
-    $x = Connect-AzAccount -Subscription $SubscriptionName
-    $SubscriptionId = $x.Context.Subscription.Id
+    Connect-AzAccount -Subscription $SubscriptionId
 }
 else
 {
     Write-Host "Context exists"
     Write-Host "Current credential is $($Context.Account.Id)"
-    if ($Context.Subscription.Name -ne $SubscriptionName) {
-        $Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -WarningAction Ignore
-        Select-AzSubscription -Subscription $Subscription.Id | Out-Null
-        Write-Host "Current subscription is $($Subscription.Name)"
-        $SubscriptionId = $Subscription.Id
+    if ($Context.Subscription.Id -ne $SubscriptionId) {
+        $result = Select-AzSubscription -Subscription $SubscriptionId
+        Write-Host "Current subscription is $($result.Subscription.Name)"
     }
     else {
         Write-Host "Current subscription is $($Context.Subscription.Name)"    
-        $SubscriptionId = $Context.Subscription.Id
     }
 }
 ########################################################################################################
@@ -38,6 +48,7 @@ else
 $token = (Get-AzAccessToken -Resource "https://dev.azuresynapse.net").Token
 $headers = @{ Authorization = "Bearer $token" }
 # ------------------------------------------
+
 # https://docs.microsoft.com/en-us/rest/api/synapse/data-plane/sqlpools/list
 # GET {endpoint}/sqlPools?api-version=2019-06-01-preview
 
@@ -47,11 +58,5 @@ $uri += "sqlPools?api-version=2019-06-01-preview"
 $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $headers
 
 Write-Host ($result | ConvertTo-Json)
-
-# with Body
-    # https://docs.microsoft.com/rest/api/synapse/data-plane/createroleassignment/createroleassignment
-    # POST {endpoint}/rbac/roleAssignments?api-version=2020-02-01-preview
-    #$body = @{ roleId = $workspaceAdminRole; principalId = $principalId; } | ConvertTo-Json -Compress
-    #Invoke-RestMethod -Method Post -ContentType "application/json" -Uri $uri -Headers $headers -Body $body
 
 

@@ -1,39 +1,56 @@
-# GET SUBSCRIPTION REGIONS AND QUOTA
+<#   
+.NOTES     
+    Author: Sergio Fonseca
+    Twitter @FonsecaSergio
+    Email: sergio.fonseca@microsoft.com
+    Last Updated: 2021-03-11
+
+.SYNOPSIS   
+   GET SUBSCRIPTION REGIONS AND QUOTA
+
+.DESCRIPTION
+       
+#> 
+
+
+
+$SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b"
 
 ########################################################################################################
 #CONNECT TO AZURE
-Clear-Host
-
-$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
 
 $Context = Get-AzContext
 
 if ($Context -eq $null) {
     Write-Information "Need to login"
-    $x = Connect-AzAccount -Subscription $SubscriptionName
-    $SubscriptionId = $x.Context.Subscription.Id
+    Connect-AzAccount -Subscription $SubscriptionId
 }
 else
 {
     Write-Host "Context exists"
     Write-Host "Current credential is $($Context.Account.Id)"
-    if ($Context.Subscription.Name -ne $SubscriptionName) {
-        $Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -WarningAction Ignore
-        Select-AzSubscription -Subscription $Subscription.Id | Out-Null
-        Write-Host "Current subscription is $($Subscription.Name)"
-        $SubscriptionId = $Subscription.Id
+    if ($Context.Subscription.Id -ne $SubscriptionId) {
+        $result = Select-AzSubscription -Subscription $SubscriptionId
+        Write-Host "Current subscription is $($result.Subscription.Name)"
     }
     else {
         Write-Host "Current subscription is $($Context.Subscription.Name)"    
-        $SubscriptionId = $Context.Subscription.Id
     }
 }
 ########################################################################################################
+
  
 # get AAD token for REST calls
-Write-Host "Getting Bearer token from AAD for REST calls..."
-$apiToken = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory.Authenticate($context.Account, $context.Environment, $context.Tenant.Id, $null, "Never", $null)
-$headers = @{ 'authorization' = ('Bearer {0}' -f ($apiToken.AccessToken)) }
+#Write-Host "Getting Bearer token from AAD for REST calls..."
+#$apiToken = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory.Authenticate($context.Account, $context.Environment, $context.Tenant.Id, $null, "Never", $null)
+#$headers = @{ 'authorization' = ('Bearer {0}' -f ($apiToken.AccessToken)) }
+
+# ------------------------------------------
+# get Bearer token for current user for Synapse Workspace API
+$token = (Get-AzAccessToken -Resource "https://management.azure.com").Token
+$headers = @{ Authorization = "Bearer $token" }
+# ------------------------------------------
+
  
 # Get Locations where Synapse is available
 Write-Host "Getting Locations where Synapse is available..."

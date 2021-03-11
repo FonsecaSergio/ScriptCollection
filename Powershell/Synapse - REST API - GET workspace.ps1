@@ -12,9 +12,9 @@
        
 #> 
 
-$ResourceGroup = "ResGroup"
-$workspaceName = "Synapse"
-$SubscriptionId = "de41dc76-xxxxxxx"
+$ResourceGroup = "SynapseWorkspace"
+$workspaceName = "fonsecanetsynapse"
+$SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b"
 
 # ------------------------------------------
 # these Az modules required
@@ -59,3 +59,6 @@ $uri += "workspaces/$workspaceName/?api-version=2019-06-01-preview"
 $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $headers
 
 Write-Host ($result | ConvertTo-Json)
+
+
+$result.properties.connectivityEndpoints.sql

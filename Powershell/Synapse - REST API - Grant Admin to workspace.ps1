@@ -1,5 +1,19 @@
-$workspaceName = "FonsecanetSynapse"
-$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
+<#   
+.NOTES     
+    Author: Sergio Fonseca
+    Twitter @FonsecaSergio
+    Email: sergio.fonseca@microsoft.com
+    Last Updated: 2021-03-11
+
+.SYNOPSIS   
+   GET SYNAPSE ROLES AND ADD NEW ADMIN
+
+.DESCRIPTION
+       
+#> 
+
+$workspaceName = "fonsecanetsynapse"
+$SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b"
 $aadUserName = "sefonsec@microsoft.com"
 
 # ------------------------------------------
@@ -15,22 +29,18 @@ $Context = Get-AzContext
 
 if ($Context -eq $null) {
     Write-Information "Need to login"
-    $x = Connect-AzAccount -Subscription $SubscriptionName
-    $SubscriptionId = $x.Context.Subscription.Id
+    Connect-AzAccount -Subscription $SubscriptionId
 }
 else
 {
     Write-Host "Context exists"
     Write-Host "Current credential is $($Context.Account.Id)"
-    if ($Context.Subscription.Name -ne $SubscriptionName) {
-        $Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -WarningAction Ignore
-        Select-AzSubscription -Subscription $Subscription.Id | Out-Null
-        Write-Host "Current subscription is $($Subscription.Name)"
-        $SubscriptionId = $Subscription.Id
+    if ($Context.Subscription.Id -ne $SubscriptionId) {
+        $result = Select-AzSubscription -Subscription $SubscriptionId
+        Write-Host "Current subscription is $($result.Subscription.Name)"
     }
     else {
         Write-Host "Current subscription is $($Context.Subscription.Name)"    
-        $SubscriptionId = $Context.Subscription.Id
     }
 }
 ########################################################################################################
@@ -54,8 +64,6 @@ Write-Host ($result | ConvertTo-Json)
 <#
 # https://docs.microsoft.com/rest/api/synapse/data-plane/createroleassignment/createroleassignment
 # POST {endpoint}/rbac/roleAssignments?api-version=2020-02-01-preview
-
-# get user AAD id
 
 $uri = "https://$workspaceName.dev.azuresynapse.net/"
 $uri += "/rbac/roleAssignments?api-version=2020-02-01-preview"
