@@ -36,12 +36,17 @@ ORDER BY submit_time DESC
 
 GO
 
-SELECT * FROM sys.dm_pdw_exec_requests WHERE request_id = 'QID24455'
-SELECT * FROM sys.dm_pdw_request_steps WHERE request_id = 'QID24455'
-SELECT * FROM sys.dm_pdw_sql_requests WHERE request_id = 'QID24455' AND step_index = 2
-SELECT * FROM sys.dm_pdw_dms_workers WHERE request_id = 'QID24455' AND step_index = 2
-SELECT * FROM sys.dm_pdw_waits WHERE request_id = 'QID24455'
+SELECT * FROM sys.dm_pdw_exec_requests WHERE request_id = 'QID73849'
+SELECT * FROM sys.dm_pdw_request_steps WHERE request_id = 'QID73849'
+SELECT * FROM sys.dm_pdw_sql_requests WHERE request_id = 'QID73849' AND step_index = 2
+SELECT * FROM sys.dm_pdw_dms_workers WHERE request_id = 'QID73849' AND step_index = 2
+SELECT * FROM sys.dm_pdw_waits WHERE request_id = 'QID73849'
 
+select type,pdw_node_id,sum(length) as file_size,sum(bytes_processed) as bytes_processed , count(*) as total_file_split 
+from sys.dm_pdw_dms_external_work where request_id ='QID73849' group by type,pdw_node_id
+
+select type ,count(*) as cnt from [sys].[dm_pdw_dms_workers] 
+where request_id='QID73849' and step_index=2 group by type
 
 --Node perf issue
 SELECT pdw_node_id, distribution_id, avg_total_elapsed_time_sec = avg(total_elapsed_time) / 1000
