@@ -290,9 +290,9 @@ foreach ($video in $vidMetadata) {
     }
 
     ################################################################################################
-    Write-Host "  * Copy-Item -Path $($picture.Path) -Destination $($PathFolderToCreate)" -ForegroundColor Yellow
+    Write-Host "  * Copy-Item -Path $($video.Path) -Destination $($PathFolderToCreate)" -ForegroundColor Yellow
     if (!($DEBUG))
-    { Copy-Item -Path $picture.Path -Destination $PathFolderToCreate }
+    { Copy-Item -Path $video.Path -Destination $PathFolderToCreate }
 
     [int] $QtFilesCopied += 1
     ################################################################################################

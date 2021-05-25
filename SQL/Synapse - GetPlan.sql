@@ -30,3 +30,6 @@ SET QUERY_DIAGNOSTICS OFF
 
 --DBCC PDW_SHOWEXECUTIONPLAN ( distribution_id, spid )
 --https://docs.microsoft.com/it-it/sql/t-sql/database-console-commands/dbcc-pdw-showexecutionplan-transact-sql?view=azure-sqldw-latest
+
+
+DBCC GETQUERYINFO('SELECT TOP 100 * FROM [dbo].[DimCustomer]')
