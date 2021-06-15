@@ -3,7 +3,7 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2021-06-04
+    Last Updated: 2021-06-15
 
 .SYNOPSIS   
    TEST SYNAPSE ENDPOINTS AND PORTS NEEDED
@@ -26,7 +26,7 @@ $SynapseDevEndpoint = "$($WorkspaceName).dev.azuresynapse.net"
 $SynapseDatabaseEndpoint = "$($WorkspaceName).database.windows.net"
 $SynapseStudioEndpoint = "web.azuresynapse.net"
 
-$OpenDNS = "208.67.222.222" #OpenDNS
+#$OpenDNS = "208.67.222.222" #OpenDNS
 #$OpenDNS = "8.8.8.8" #GoogleDNS
 
 $TestPortConnectionTimeoutMs = 1000
@@ -122,9 +122,58 @@ function Test-Port {
 }
 #----------------------------------------------------------------------------------------------------------------------
 
+function Get-HostsFilesEntries {   
+    $Pattern = '^(?<IP>\d{1,3}(\.\d{1,3}){3})\s+(?<Host>.+)$'
+    $File    = "$env:SystemDrive\Windows\System32\Drivers\etc\hosts"
+
+    $result = [System.Collections.ArrayList]::new()
+
+    (Get-Content -Path $File)  | ForEach-Object {
+        If ($_ -match $Pattern) {
+            $Entries += "$($Matches.IP),$($Matches.Host)"
+
+            $null = $result.Add([PSCustomObject]@{
+                IP   = $Matches.IP
+                HOST = $Matches.Host
+                })
+        }
+    }
+
+    return $result
+}
+
+
+function Get-DnsCxServerAddresses {   
+    $result = [System.Collections.ArrayList]::new()
+
+    $DNSServers = Get-DnsClientServerAddress
+
+    $DNSServers = $DNSServers | Where-Object ServerAddresses
+
+    (Get-Content -Path $File)  | ForEach-Object {
+        If ($_ -match $Pattern) {
+            $Entries += "$($Matches.IP),$($Matches.Host)"
+
+            $null = $result.Add([PSCustomObject]@{
+                IP   = $Matches.IP
+                HOST = $Matches.Host
+                })
+        }
+    }
+
+    return $result
+}
 
 
 
+
+####################################################
+# GET HOSTS FILE ENTRIES
+Write-Host "---------------------------------------------------"
+Write-Host "GET HOSTS FILE ENTRIES"
+
+$DnsHostsEntries = Get-HostsFilesEntries
+$DnsHostsEntries
 
 ####################################################
 # Resolve using current DNS
@@ -132,21 +181,21 @@ Write-Host "---------------------------------------------------"
 Write-Host "TEST NAME RESOLUTION"
 
 $DNSreturn1 = Resolve-DnsName $SynapseSQLEndpoint 
-$DNSreturn2 = Resolve-DnsName $SynapseSQLEndpoint -Server $OpenDNS
+#$DNSreturn2 = Resolve-DnsName $SynapseSQLEndpoint -Server $OpenDNS
 
 $DNSreturn3 = Resolve-DnsName $SynapseServelessEndpoint
-$DNSreturn4 = Resolve-DnsName $SynapseServelessEndpoint -Server $OpenDNS
+#$DNSreturn4 = Resolve-DnsName $SynapseServelessEndpoint -Server $OpenDNS
 
 $DNSreturn5 = Resolve-DnsName $SynapseDevEndpoint
-$DNSreturn6 = Resolve-DnsName $SynapseDevEndpoint -Server $OpenDNS
+#$DNSreturn6 = Resolve-DnsName $SynapseDevEndpoint -Server $OpenDNS
 
 $DNSreturn7 = Resolve-DnsName $SynapseDatabaseEndpoint
-$DNSreturn8 = Resolve-DnsName $SynapseDatabaseEndpoint -Server $OpenDNS
+#$DNSreturn8 = Resolve-DnsName $SynapseDatabaseEndpoint -Server $OpenDNS
 
 $DNSreturn9 = Resolve-DnsName $SynapseStudioEndpoint
-$DNSreturn10 = Resolve-DnsName $SynapseStudioEndpoint -Server $OpenDNS
+#$DNSreturn10 = Resolve-DnsName $SynapseStudioEndpoint -Server $OpenDNS
 
-
+<#
 Write-Host "---------------------------------------------------"
 if ($DNSreturn1.IPAddress -eq $DNSreturn2.IPAddress)
     {Write-Host "  > DNS for ($($SynapseSQLEndpoint)) / CX:($($DNSreturn1.IPAddress)) / OpenDNS($($DNSreturn2.IPAddress)) -> EQUAL" -ForegroundColor Green }
@@ -172,7 +221,13 @@ if ($DNSreturn9.IPAddress -eq $DNSreturn10.IPAddress)
     {Write-Host "  > DNS for ($($SynapseStudioEndpoint)) / CX:($($DNSreturn9.IPAddress)) / OpenDNS($($DNSreturn10.IPAddress)) -> EQUAL" -ForegroundColor Green }
 else
     {Write-Host "  > DNS for ($($SynapseStudioEndpoint)) / CX:($($DNSreturn9.IPAddress)) / OpenDNS($($DNSreturn10.IPAddress)) -> NOT EQUAL" -ForegroundColor Yellow } 
+#>
 
+Write-Host "  > DNS for ($($SynapseSQLEndpoint)) / CX:($($DNSreturn1.IPAddress))"
+Write-Host "  > DNS for ($($SynapseServelessEndpoint)) / CX:($($DNSreturn3.IPAddress))"
+Write-Host "  > DNS for ($($SynapseDevEndpoint)) / CX:($($DNSreturn5.IPAddress))"
+Write-Host "  > DNS for ($($SynapseDatabaseEndpoint)) / CX:($($DNSreturn7.IPAddress))"
+Write-Host "  > DNS for ($($SynapseStudioEndpoint)) / CX:($($DNSreturn9.IPAddress))"
 
 ####################################################
 # Test Ports
@@ -212,3 +267,7 @@ foreach ($result in $Results443)
     {Write-host "  > Port $($result.RemotePort) for $($result.RemoteHostname) is CLOSED" -ForegroundColor Red } 
 }
 Write-Host "  ---------------------------------------------------"
+
+Write-Host "  ---------------------------------------------------"
+
+
