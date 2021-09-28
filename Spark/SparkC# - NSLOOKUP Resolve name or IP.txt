@@ -1,0 +1,4 @@
+%%csharp
+using System.Net;
+IPHostEntry host = Dns.GetHostEntry("fonsecanet.database.windows.net");
+host
