@@ -2,11 +2,11 @@
 
 [guid]$guid = [System.Guid]::Parse($objectIdOrAppId)
 
+$byteGuid = ""
+
 foreach ($byte in $guid.ToByteArray())
 {
     $byteGuid += [System.String]::Format("{0:X2}", $byte)
 }
-
-Remove-Variable -Name byteGuid
 
 return "0x" + $byteGuid

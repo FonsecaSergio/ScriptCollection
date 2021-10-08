@@ -60,6 +60,14 @@ ORDER BY avg_total_elapsed_time_sec desc
 
 SELECT * FROM sys.dm_pdw_exec_sessions where status <> 'Closed' and session_id <> session_id();
 
+SELECT * 
+FROM sys.dm_pdw_exec_sessions S 
+INNER JOIN sys.dm_pdw_exec_requests R
+	ON S.session_id = R.session_id
+INNER JOIN sys.dm_pdw_exec_connections C
+	ON S.session_id = C.session_id
+WHERE S.sql_spid = @@spid
+
 
 
 SELECT * FROM sys.dm_pdw_dms_external_work

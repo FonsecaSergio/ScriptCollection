@@ -3,12 +3,15 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2021-06-15
+    Last Updated: 2021-10-07
 
 .SYNOPSIS   
-   TEST SYNAPSE ENDPOINTS AND PORTS NEEDED
+    TEST SYNAPSE ENDPOINTS AND PORTS NEEDED
 
 .DESCRIPTION
+    - Check all Windows HOST File entries
+    - Check name resolution for all possible endpoints used by Synapse
+    - Check if ports needed are open (1433 / 1443 / 443)
     
 #> 
 using namespace System.Net
@@ -20,24 +23,47 @@ $WorkspaceName = "FonsecanetSynapse"
 
 ####################################################
 #ENDPOINTS
-$SynapseSQLEndpoint = "$($WorkspaceName).sql.azuresynapse.net"
-$SynapseServelessEndpoint = "$($WorkspaceName)-ondemand.sql.azuresynapse.net"
-$SynapseDevEndpoint = "$($WorkspaceName).dev.azuresynapse.net"
-$SynapseDatabaseEndpoint = "$($WorkspaceName).database.windows.net"
-$SynapseStudioEndpoint = "web.azuresynapse.net"
+$SynapseSQLEndpoint = @{ NAME = "$($WorkspaceName).sql.azuresynapse.net"
+ENDPOINT_CX = $null
+ENDPOINT_GOOGLE = $null
+};
+
+$SynapseServelessEndpoint = @{ NAME = "$($WorkspaceName)-ondemand.sql.azuresynapse.net"
+ENDPOINT_CX = $null
+ENDPOINT_GOOGLE = $null
+};
+
+$SynapseDevEndpoint = @{ NAME = "$($WorkspaceName).dev.azuresynapse.net"
+ENDPOINT_CX = $null
+ENDPOINT_GOOGLE = $null
+};
+
+$SQLDatabaseEndpoint = @{ NAME = "$($WorkspaceName).database.windows.net"
+ENDPOINT_CX = $null
+ENDPOINT_GOOGLE = $null
+};
+
+$SynapseStudioEndpoint = @{ NAME = "web.azuresynapse.net"
+ENDPOINT_CX = $null
+ENDPOINT_GOOGLE = $null
+};
+
+$AzureManagementEndpoint = @{ NAME = "management.azure.com"
+ENDPOINT_CX = $null
+ENDPOINT_GOOGLE = $null
+};
 
 #$OpenDNS = "208.67.222.222" #OpenDNS
-#$OpenDNS = "8.8.8.8" #GoogleDNS
+$DNSGoogle = "8.8.8.8" #GoogleDNS
 
 $TestPortConnectionTimeoutMs = 1000
-
-
 ####################################################
 
 
 #----------------------------------------------------------------------------------------------------------------------
 #https://github.com/Azure/SQL-Connectivity-Checker/blob/master/AzureSQLConnectivityChecker.ps1
-function Resolve-DnsName {
+<#
+function Resolve-DnsName_Internal {
     param(
         [Parameter(Position = 0)] $Name,
         [Parameter()] $Server,
@@ -49,6 +75,7 @@ function Resolve-DnsName {
         try {
             if ($Server -ne $null) {
                 Write-Host " -Trying to resolve DNS for $($Name) with DNS Server $($Server)" -ForegroundColor DarkGray
+                # NOT CURRENTLY WORKING
             }
             else {
                 Write-Host " -Trying to resolve DNS for $($Name) from Customer DNS" -ForegroundColor DarkGray
@@ -57,13 +84,44 @@ function Resolve-DnsName {
             return @{ IPAddress = [System.Net.DNS]::GetHostAddresses($Name).IPAddressToString };
         }
         catch {
-            Write-Host " -Error at Resolve-DnsName: $($_.Exception.Message)" -ForegroundColor REd
+            Write-Host " -Error at Resolve-DnsName_Internal: $($_.Exception.Message)" -ForegroundColor REd
         }
     }
 }
 
-#----------------------------------------------------------------------------------------------------------------------
+#>
 
+function Resolve-DnsName_Internal {
+    param(
+        [Parameter(Position = 0)] $Name,
+        [string] $Server,
+        [switch] $CacheOnly,
+        [switch] $DnsOnly,
+        [switch] $NoHostsFile
+    );
+    process {
+        try {
+            if ($Server -ne $null -and $Server -ne "") {
+                Write-Host " -Trying to resolve DNS for $($Name) with DNS Server $($Server)" -ForegroundColor DarkGray
+                $DNSResults = (Resolve-DnsName -Name $Name -Type A -QuickTimeout -Server $Server) | Where-Object {$_.QueryType -eq 'A'}
+            }
+            else {
+                Write-Host " -Trying to resolve DNS for $($Name) from Customer DNS" -ForegroundColor DarkGray
+                $DNSResults = (Resolve-DnsName -Name $Name -Type A -QuickTimeout) | Where-Object {$_.QueryType -eq 'A'}
+            }
+
+            return $DNSResults
+
+            #return @{ IPAddress = [System.Net.DNS]::GetHostAddresses($Name).IPAddressToString };
+        }
+        catch {
+            Write-Host " -Error at Resolve-DnsName_Internal: $($_.Exception.Message)" -ForegroundColor REd
+        }
+    }
+}
+
+
+#----------------------------------------------------------------------------------------------------------------------
 #https://copdips.com/2019/09/fast-tcp-port-check-in-powershell.html
 function Test-Port {
     [CmdletBinding()]
@@ -120,8 +178,8 @@ function Test-Port {
         return $result
     }
 }
-#----------------------------------------------------------------------------------------------------------------------
 
+#----------------------------------------------------------------------------------------------------------------------
 function Get-HostsFilesEntries {   
     $Pattern = '^(?<IP>\d{1,3}(\.\d{1,3}){3})\s+(?<Host>.+)$'
     $File    = "$env:SystemDrive\Windows\System32\Drivers\etc\hosts"
@@ -142,7 +200,7 @@ function Get-HostsFilesEntries {
     return $result
 }
 
-
+#----------------------------------------------------------------------------------------------------------------------
 function Get-DnsCxServerAddresses {   
     $result = [System.Collections.ArrayList]::new()
 
@@ -164,110 +222,164 @@ function Get-DnsCxServerAddresses {
     return $result
 }
 
+#----------------------------------------------------------------------------------------------------------------------
+#http://www.padisetty.com/2014/05/powershell-bit-manipulation-and-network.html
+#checkSubnet "20.36.105.32/29" "20.36.104.6" #FALSE
+#checkSubnet "20.36.105.0/24" "20.36.105.10" #TRUE
+
+function checkSubnet ([string]$cidr, [string]$ip) {
+    $network, [int]$subnetlen = $cidr.Split('/')
+    $a = [uint32[]]$network.split('.')
+    [uint32] $unetwork = ($a[0] -shl 24) + ($a[1] -shl 16) + ($a[2] -shl 8) + $a[3]
+
+    $mask = (-bnot [uint32]0) -shl (32 - $subnetlen)
+
+    $a = [uint32[]]$ip.split('.')
+    [uint32] $uip = ($a[0] -shl 24) + ($a[1] -shl 16) + ($a[2] -shl 8) + $a[3]
+
+    $unetwork -eq ($mask -band $uip)
+}
+#----------------------------------------------------------------------------------------------------------------------
 
 
+####################################################
+# COLLECTING DATA
+
+Write-Host "---------------------------------------------------" -ForegroundColor Yellow
+Write-Host "COLLECTING DATA" -ForegroundColor Yellow
+Write-Host "---------------------------------------------------" -ForegroundColor Yellow
 
 ####################################################
 # GET HOSTS FILE ENTRIES
-Write-Host "---------------------------------------------------"
-Write-Host "GET HOSTS FILE ENTRIES"
-
-$DnsHostsEntries = Get-HostsFilesEntries
-$DnsHostsEntries
+Write-Host "  ---------------------------------------------------"
+Write-Host "  GET HOSTS FILE ENTRIES"
+$HostsFileEntries = Get-HostsFilesEntries
 
 ####################################################
 # Resolve using current DNS
-Write-Host "---------------------------------------------------"
-Write-Host "TEST NAME RESOLUTION"
+Write-Host "  ---------------------------------------------------"
+Write-Host "  TEST NAME RESOLUTION"
+$SynapseSQLEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SynapseSQLEndpoint.NAME
+$SynapseServelessEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SynapseServelessEndpoint.NAME
+$SynapseDevEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SynapseDevEndpoint.NAME
+$SQLDatabaseEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SQLDatabaseEndpoint.NAME
+$SynapseStudioEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SynapseStudioEndpoint.NAME
+$AzureManagementEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $AzureManagementEndpoint.NAME
 
-$DNSreturn1 = Resolve-DnsName $SynapseSQLEndpoint 
-#$DNSreturn2 = Resolve-DnsName $SynapseSQLEndpoint -Server $OpenDNS
+$SynapseSQLEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $SynapseSQLEndpoint.NAME -Server $DNSGoogle
+$SynapseServelessEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $SynapseServelessEndpoint.NAME -Server $DNSGoogle
+$SynapseDevEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $SynapseDevEndpoint.NAME -Server $DNSGoogle
+$SQLDatabaseEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $SQLDatabaseEndpoint.NAME -Server $DNSGoogle
+$SynapseStudioEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $SynapseStudioEndpoint.NAME -Server $DNSGoogle
+$AzureManagementEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $AzureManagementEndpoint.NAME -Server $DNSGoogle
 
-$DNSreturn3 = Resolve-DnsName $SynapseServelessEndpoint
-#$DNSreturn4 = Resolve-DnsName $SynapseServelessEndpoint -Server $OpenDNS
+####################################################
+#https://docs.microsoft.com/en-us/azure/azure-sql/database/connectivity-architecture#gateway-ip-addresses
 
-$DNSreturn5 = Resolve-DnsName $SynapseDevEndpoint
-#$DNSreturn6 = Resolve-DnsName $SynapseDevEndpoint -Server $OpenDNS
+$Regions = [System.Collections.ArrayList]::new()
 
-$DNSreturn7 = Resolve-DnsName $SynapseDatabaseEndpoint
-#$DNSreturn8 = Resolve-DnsName $SynapseDatabaseEndpoint -Server $OpenDNS
+$null = $Regions.Add([PSCustomObject]@{NAME = 'Australia Central'
+GATEWAYS = @('20.36.105.0', '20.36.104.6', '20.36.104.7')
+GATEWAY_SUBNETS = @('20.36.105.32/29') })
 
-$DNSreturn9 = Resolve-DnsName $SynapseStudioEndpoint
-#$DNSreturn10 = Resolve-DnsName $SynapseStudioEndpoint -Server $OpenDNS
+#$Regions
 
-<#
-Write-Host "---------------------------------------------------"
-if ($DNSreturn1.IPAddress -eq $DNSreturn2.IPAddress)
-    {Write-Host "  > DNS for ($($SynapseSQLEndpoint)) / CX:($($DNSreturn1.IPAddress)) / OpenDNS($($DNSreturn2.IPAddress)) -> EQUAL" -ForegroundColor Green }
-else
-    {Write-Host "  > DNS for ($($SynapseSQLEndpoint)) / CX:($($DNSreturn1.IPAddress)) / OpenDNS($($DNSreturn2.IPAddress)) -> NOT EQUAL" -ForegroundColor Yellow } 
+    
 
-if ($DNSreturn3.IPAddress -eq $DNSreturn4.IPAddress)
-    {Write-Host "  > DNS for ($($SynapseServelessEndpoint)) / CX:($($DNSreturn3.IPAddress)) / OpenDNS($($DNSreturn4.IPAddress)) -> EQUAL" -ForegroundColor Green }
-else
-    {Write-Host "  > DNS for ($($SynapseServelessEndpoint)) / CX:($($DNSreturn3.IPAddress)) / OpenDNS($($DNSreturn4.IPAddress)) -> NOT EQUAL" -ForegroundColor Yellow } 
 
-if ($DNSreturn5.IPAddress -eq $DNSreturn6.IPAddress)
-    {Write-Host "  > DNS for ($($SynapseDevEndpoint)) / CX:($($DNSreturn5.IPAddress)) / OpenDNS($($DNSreturn6.IPAddress)) -> EQUAL" -ForegroundColor Green }
-else
-    {Write-Host "  > DNS for ($($SynapseDevEndpoint)) / CX:($($DNSreturn5.IPAddress)) / OpenDNS($($DNSreturn6.IPAddress)) -> NOT EQUAL" -ForegroundColor Yellow } 
 
-if ($DNSreturn7.IPAddress -eq $DNSreturn8.IPAddress)
-    {Write-Host "  > DNS for ($($SynapseDatabaseEndpoint)) / CX:($($DNSreturn7.IPAddress)) / OpenDNS($($DNSreturn8.IPAddress)) -> EQUAL" -ForegroundColor Green }
-else
-    {Write-Host "  > DNS for ($($SynapseDatabaseEndpoint)) / CX:($($DNSreturn7.IPAddress)) / OpenDNS($($DNSreturn8.IPAddress)) -> NOT EQUAL" -ForegroundColor Yellow } 
 
-if ($DNSreturn9.IPAddress -eq $DNSreturn10.IPAddress)
-    {Write-Host "  > DNS for ($($SynapseStudioEndpoint)) / CX:($($DNSreturn9.IPAddress)) / OpenDNS($($DNSreturn10.IPAddress)) -> EQUAL" -ForegroundColor Green }
-else
-    {Write-Host "  > DNS for ($($SynapseStudioEndpoint)) / CX:($($DNSreturn9.IPAddress)) / OpenDNS($($DNSreturn10.IPAddress)) -> NOT EQUAL" -ForegroundColor Yellow } 
-#>
-
-Write-Host "  > DNS for ($($SynapseSQLEndpoint)) / CX:($($DNSreturn1.IPAddress))"
-Write-Host "  > DNS for ($($SynapseServelessEndpoint)) / CX:($($DNSreturn3.IPAddress))"
-Write-Host "  > DNS for ($($SynapseDevEndpoint)) / CX:($($DNSreturn5.IPAddress))"
-Write-Host "  > DNS for ($($SynapseDatabaseEndpoint)) / CX:($($DNSreturn7.IPAddress))"
-Write-Host "  > DNS for ($($SynapseStudioEndpoint)) / CX:($($DNSreturn9.IPAddress))"
 
 ####################################################
 # Test Ports
-Write-Host "---------------------------------------------------"
-Write-Host "TEST PORTS NEEDED"
+Write-Host "  ---------------------------------------------------"
+Write-Host "  TEST PORTS NEEDED"
 #1433
-$Results1433 = $SynapseSQLEndpoint, $SynapseServelessEndpoint, $SynapseDatabaseEndpoint | Test-Port -Port 1433 -Timeout $TestPortConnectionTimeoutMs
-
+$Results1433 = $SynapseSQLEndpoint.NAME, $SynapseServelessEndpoint.NAME, $SQLDatabaseEndpoint.NAME | Test-Port -Port 1433 -Timeout $TestPortConnectionTimeoutMs
 #1443
-$Results1443 = $SynapseSQLEndpoint, $SynapseServelessEndpoint | Test-Port -Port 1443 -Timeout $TestPortConnectionTimeoutMs
-
+$Results1443 = $SynapseSQLEndpoint.NAME, $SynapseServelessEndpoint.NAME | Test-Port -Port 1443 -Timeout $TestPortConnectionTimeoutMs
 #443
-$Results443 = $SynapseSQLEndpoint, $SynapseServelessEndpoint, $SynapseDevEndpoint, $SynapseStudioEndpoint | Test-Port -Port 443 -Timeout $TestPortConnectionTimeoutMs
+$Results443 = $SynapseSQLEndpoint.NAME, $SynapseServelessEndpoint.NAME, $SynapseDevEndpoint.NAME, $SynapseStudioEndpoint.NAME, $AzureManagementEndpoint.NAME | Test-Port -Port 443 -Timeout $TestPortConnectionTimeoutMs
+
+
+
+####################################################
+# RESULTS
+####################################################
+Write-Host "  ---------------------------------------------------"
+
+
+Write-Host "---------------------------------------------------" -ForegroundColor Yellow
+Write-Host "RESULTS " -ForegroundColor Yellow
+Write-Host "---------------------------------------------------" -ForegroundColor Yellow
+
+$File    = "$env:SystemDrive\Windows\System32\Drivers\etc\hosts"
+Write-Host "  ---------------------------------------------------"
+Write-Host "  HOSTS FILE [$($File)]"
+foreach ($HostsFileEntry in $HostsFileEntries)
+{
+    if ($HostsFileEntry.HOST.Contains($WorkspaceName)) {
+        Write-Host "   > IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]" -ForegroundColor Red    
+    }
+    else {
+        Write-Host "   > IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]"
+    }    
+}
+
+
+
+<#
+.SYNOPSIS
+Just internal function to simplify tests and notes
+#>
+function Test-Endpoint {
+    param(
+        [Parameter(Position = 0)] $Endpoint
+    );
+    process {
+        Write-Host "  ---------------------------------------------------"
+        Write-Host "  NAME RESOLUTION "
+        Write-Host "   > DNS for ($($Endpoint.NAME))"
+        Write-Host "      > CX DNS:($($Endpoint.ENDPOINT_CX.IPAddress)) / NAME:($($Endpoint.ENDPOINT_CX.Name))"
+        Write-Host "      > Google DNS:($($Endpoint.ENDPOINT_GOOGLE.IPAddress)) / NAME:($($Endpoint.ENDPOINT_GOOGLE.Name))"
+        if ($Endpoint.ENDPOINT_CX.IPAddress -eq $Endpoint.ENDPOINT_GOOGLE.IPAddress) 
+        { Write-Host "      > CX SERVER AND GOOGLE ARE SAME" -ForegroundColor Green }
+        else { Write-Host "      > CX SERVER AND GOOGLE ARE NOT SAME" -ForegroundColor Yellow }
+    }
+}
+
+Test-Endpoint $SynapseSQLEndpoint
+Test-Endpoint $SynapseServelessEndpoint
+Test-Endpoint $SynapseDevEndpoint
+Test-Endpoint $SQLDatabaseEndpoint
+Test-Endpoint $SynapseStudioEndpoint
+Test-Endpoint $AzureManagementEndpoint
+
 
 Write-Host "  ---------------------------------------------------"
+Write-Host "  PORTS OPEN"
+Write-Host "  1433 -----------------------------------------------"
 foreach ($result in $Results1433)
 {
     if($result.PortOpened -eq $true)
-    {Write-host "  > Port $($result.RemotePort) for $($result.RemoteHostname) is OPEN" -ForegroundColor Green }
+    {Write-host "   > Port $($result.RemotePort) for $($result.RemoteHostname) is OPEN" -ForegroundColor Green }
     else
-    {Write-host "  > Port $($result.RemotePort) for $($result.RemoteHostname) is CLOSED" -ForegroundColor Red } 
+    {Write-host "   > Port $($result.RemotePort) for $($result.RemoteHostname) is CLOSED" -ForegroundColor Red } 
 }
-Write-Host "  ---------------------------------------------------"
+Write-Host "  > 1443 --------------------------------------------"
 foreach ($result in $Results1443)
 {
     if($result.PortOpened -eq $true)
-    {Write-host "  > Port $($result.RemotePort) for $($result.RemoteHostname) is OPEN" -ForegroundColor Green }
+    {Write-host "   > Port $($result.RemotePort) for $($result.RemoteHostname) is OPEN" -ForegroundColor Green }
     else
-    {Write-host "  > Port $($result.RemotePort) for $($result.RemoteHostname) is CLOSED" -ForegroundColor Red } 
+    {Write-host "   > Port $($result.RemotePort) for $($result.RemoteHostname) is CLOSED" -ForegroundColor Red } 
 }
-Write-Host "  ---------------------------------------------------"
+Write-Host "  > 443 ------------------------------------------------"
 foreach ($result in $Results443)
 {
     if($result.PortOpened -eq $true)
-    {Write-host "  > Port $($result.RemotePort) for $($result.RemoteHostname) is OPEN" -ForegroundColor Green }
+    {Write-host "   > Port $($result.RemotePort) for $($result.RemoteHostname) is OPEN" -ForegroundColor Green }
     else
-    {Write-host "  > Port $($result.RemotePort) for $($result.RemoteHostname) is CLOSED" -ForegroundColor Red } 
+    {Write-host "   > Port $($result.RemotePort) for $($result.RemoteHostname) is CLOSED" -ForegroundColor Red } 
 }
-Write-Host "  ---------------------------------------------------"
-
-Write-Host "  ---------------------------------------------------"
-
-
+Write-Host "  > ---------------------------------------------------"
