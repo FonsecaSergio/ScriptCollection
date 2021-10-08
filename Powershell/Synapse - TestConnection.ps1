@@ -343,8 +343,8 @@ function Test-Endpoint {
         Write-Host "      > CX DNS:($($Endpoint.ENDPOINT_CX.IPAddress)) / NAME:($($Endpoint.ENDPOINT_CX.Name))"
         Write-Host "      > Google DNS:($($Endpoint.ENDPOINT_GOOGLE.IPAddress)) / NAME:($($Endpoint.ENDPOINT_GOOGLE.Name))"
         if ($Endpoint.ENDPOINT_CX.IPAddress -eq $Endpoint.ENDPOINT_GOOGLE.IPAddress) 
-        { Write-Host "      > CX SERVER AND GOOGLE ARE SAME" -ForegroundColor Green }
-        else { Write-Host "      > CX SERVER AND GOOGLE ARE NOT SAME" -ForegroundColor Yellow }
+        { Write-Host "      > CX DNS SERVER AND GOOGLE DNS ARE SAME" -ForegroundColor Green }
+        else { Write-Host "      > CX DNS SERVER AND GOOGLE DNS ARE NOT SAME" -ForegroundColor Yellow }
     }
 }
 
