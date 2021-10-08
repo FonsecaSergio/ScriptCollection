@@ -3,7 +3,7 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2021-10-07
+    Last Updated: 2021-10-08
 
 .SYNOPSIS   
     TEST SYNAPSE ENDPOINTS AND PORTS NEEDED
@@ -12,14 +12,14 @@
     - Check all Windows HOST File entries
     - Check name resolution for all possible endpoints used by Synapse
     - Check if ports needed are open (1433 / 1443 / 443)
-    
 #> 
+
 using namespace System.Net
 
 Clear-Host
 ####################################################
 
-$WorkspaceName = "FonsecanetSynapse"
+$WorkspaceName = "fonsecanetsynapse"
 
 ####################################################
 #ENDPOINTS
@@ -53,8 +53,8 @@ ENDPOINT_CX = $null
 ENDPOINT_GOOGLE = $null
 };
 
-#$OpenDNS = "208.67.222.222" #OpenDNS
 $DNSGoogle = "8.8.8.8" #GoogleDNS
+#$DNSGoogle = "127.0.0.1" #GoogleDNS
 
 $TestPortConnectionTimeoutMs = 1000
 ####################################################
@@ -103,11 +103,11 @@ function Resolve-DnsName_Internal {
         try {
             if ($Server -ne $null -and $Server -ne "") {
                 Write-Host " -Trying to resolve DNS for $($Name) with DNS Server $($Server)" -ForegroundColor DarkGray
-                $DNSResults = (Resolve-DnsName -Name $Name -Type A -QuickTimeout -Server $Server) | Where-Object {$_.QueryType -eq 'A'}
+                $DNSResults = (Resolve-DnsName -Name $Name -DnsOnly -Type A -QuickTimeout -Server $Server  -ErrorAction Stop) | Where-Object {$_.QueryType -eq 'A'}
             }
             else {
                 Write-Host " -Trying to resolve DNS for $($Name) from Customer DNS" -ForegroundColor DarkGray
-                $DNSResults = (Resolve-DnsName -Name $Name -Type A -QuickTimeout) | Where-Object {$_.QueryType -eq 'A'}
+                $DNSResults = (Resolve-DnsName -Name $Name -DnsOnly -Type A -QuickTimeout -ErrorAction Stop) | Where-Object {$_.QueryType -eq 'A'}
             }
 
             return $DNSResults
@@ -197,29 +197,16 @@ function Get-HostsFilesEntries {
         }
     }
 
-    return $result
+    return @( $result )
 }
 
 #----------------------------------------------------------------------------------------------------------------------
 function Get-DnsCxServerAddresses {   
-    $result = [System.Collections.ArrayList]::new()
+    $DNSServers = Get-DnsClientServerAddress | `
+        Where-Object {$_.AddressFamily -eq 2 <#"IPv4"#>} |  `
+        Select-Object –ExpandProperty ServerAddresses -Unique
 
-    $DNSServers = Get-DnsClientServerAddress
-
-    $DNSServers = $DNSServers | Where-Object ServerAddresses
-
-    (Get-Content -Path $File)  | ForEach-Object {
-        If ($_ -match $Pattern) {
-            $Entries += "$($Matches.IP),$($Matches.Host)"
-
-            $null = $result.Add([PSCustomObject]@{
-                IP   = $Matches.IP
-                HOST = $Matches.Host
-                })
-        }
-    }
-
-    return $result
+    return $DNSServers
 }
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -245,19 +232,29 @@ function checkSubnet ([string]$cidr, [string]$ip) {
 ####################################################
 # COLLECTING DATA
 
-Write-Host "---------------------------------------------------" -ForegroundColor Yellow
+Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
 Write-Host "COLLECTING DATA" -ForegroundColor Yellow
-Write-Host "---------------------------------------------------" -ForegroundColor Yellow
+Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
 
 ####################################################
 # GET HOSTS FILE ENTRIES
-Write-Host "  ---------------------------------------------------"
+Write-Host "  ----------------------------------------------------------------------------"
 Write-Host "  GET HOSTS FILE ENTRIES"
-$HostsFileEntries = Get-HostsFilesEntries
+$HostsFileEntries = @(Get-HostsFilesEntries)
+
+
+
+####################################################
+# GET DNS SERVERS
+Write-Host "  ----------------------------------------------------------------------------"
+Write-Host "  GET DNS SERVERS"
+$DnsCxServerAddresses = @(Get-DnsCxServerAddresses)
+
+Get-DnsClientServerAddress | ? serveraddresses
 
 ####################################################
 # Resolve using current DNS
-Write-Host "  ---------------------------------------------------"
+Write-Host "  ----------------------------------------------------------------------------"
 Write-Host "  TEST NAME RESOLUTION"
 $SynapseSQLEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SynapseSQLEndpoint.NAME
 $SynapseServelessEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SynapseServelessEndpoint.NAME
@@ -273,26 +270,10 @@ $SQLDatabaseEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $SQLDatabaseEndp
 $SynapseStudioEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $SynapseStudioEndpoint.NAME -Server $DNSGoogle
 $AzureManagementEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $AzureManagementEndpoint.NAME -Server $DNSGoogle
 
-####################################################
-#https://docs.microsoft.com/en-us/azure/azure-sql/database/connectivity-architecture#gateway-ip-addresses
-
-$Regions = [System.Collections.ArrayList]::new()
-
-$null = $Regions.Add([PSCustomObject]@{NAME = 'Australia Central'
-GATEWAYS = @('20.36.105.0', '20.36.104.6', '20.36.104.7')
-GATEWAY_SUBNETS = @('20.36.105.32/29') })
-
-#$Regions
-
-    
-
-
-
-
 
 ####################################################
 # Test Ports
-Write-Host "  ---------------------------------------------------"
+Write-Host "  ----------------------------------------------------------------------------"
 Write-Host "  TEST PORTS NEEDED"
 #1433
 $Results1433 = $SynapseSQLEndpoint.NAME, $SynapseServelessEndpoint.NAME, $SQLDatabaseEndpoint.NAME | Test-Port -Port 1433 -Timeout $TestPortConnectionTimeoutMs
@@ -301,32 +282,67 @@ $Results1443 = $SynapseSQLEndpoint.NAME, $SynapseServelessEndpoint.NAME | Test-P
 #443
 $Results443 = $SynapseSQLEndpoint.NAME, $SynapseServelessEndpoint.NAME, $SynapseDevEndpoint.NAME, $SynapseStudioEndpoint.NAME, $AzureManagementEndpoint.NAME | Test-Port -Port 443 -Timeout $TestPortConnectionTimeoutMs
 
+Write-Host "  ----------------------------------------------------------------------------"
+
 
 
 ####################################################
 # RESULTS
 ####################################################
-Write-Host "  ---------------------------------------------------"
 
 
-Write-Host "---------------------------------------------------" -ForegroundColor Yellow
+
+Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
 Write-Host "RESULTS " -ForegroundColor Yellow
-Write-Host "---------------------------------------------------" -ForegroundColor Yellow
+Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
 
 $File    = "$env:SystemDrive\Windows\System32\Drivers\etc\hosts"
-Write-Host "  ---------------------------------------------------"
+
+Write-Host "  ----------------------------------------------------------------------------"
 Write-Host "  HOSTS FILE [$($File)]"
-foreach ($HostsFileEntry in $HostsFileEntries)
-{
-    if ($HostsFileEntry.HOST.Contains($WorkspaceName)) {
-        Write-Host "   > IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]" -ForegroundColor Red    
-    }
-    else {
-        Write-Host "   > IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]"
-    }    
+
+if ($HostsFileEntries.Count -gt 0) {
+    foreach ($HostsFileEntry in $HostsFileEntries)
+    {
+        if (
+            $HostsFileEntry.HOST.Contains($WorkspaceName) -or `
+            $HostsFileEntry.HOST.Contains($SynapseStudioEndpoint.NAME) -or `
+            $HostsFileEntry.HOST.Contains($AzureManagementEndpoint.NAME)`
+        ) {
+            Write-Host "   > IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]" -ForegroundColor Red    
+        }
+        else {
+            Write-Host "   > IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]"
+        }    
+    }     
+}
+else {
+    Write-Host "   > NO RELATED ENTRY" -ForegroundColor Green
 }
 
 
+
+
+#####################################################################################
+Write-Host "  ----------------------------------------------------------------------------"
+Write-Host "  DNS SERVERS"
+foreach ($DnsCxServerAddress in $DnsCxServerAddresses)
+{
+    #https://docs.microsoft.com/en-us/azure/virtual-network/what-is-ip-address-168-63-129-16
+    if ($DnsCxServerAddress -eq "168.63.129.16") {
+        Write-Host "   > DNS [$($DnsCxServerAddress)] AZURE DNS" -ForegroundColor Cyan
+    }
+    else {
+        Write-Host "   > DNS [$($DnsCxServerAddress)] CUSTOM" -ForegroundColor Cyan
+    } 
+       
+}
+
+
+
+#####################################################################################
+Write-Host "  ----------------------------------------------------------------------------"
+Write-Host "  NAME RESOLUTION "
 
 <#
 .SYNOPSIS
@@ -337,14 +353,21 @@ function Test-Endpoint {
         [Parameter(Position = 0)] $Endpoint
     );
     process {
-        Write-Host "  ---------------------------------------------------"
-        Write-Host "  NAME RESOLUTION "
+        Write-Host "   ----------------------------------------------------------------------------"
         Write-Host "   > DNS for ($($Endpoint.NAME))"
         Write-Host "      > CX DNS:($($Endpoint.ENDPOINT_CX.IPAddress)) / NAME:($($Endpoint.ENDPOINT_CX.Name))"
         Write-Host "      > Google DNS:($($Endpoint.ENDPOINT_GOOGLE.IPAddress)) / NAME:($($Endpoint.ENDPOINT_GOOGLE.Name))"
+
         if ($Endpoint.ENDPOINT_CX.IPAddress -eq $Endpoint.ENDPOINT_GOOGLE.IPAddress) 
         { Write-Host "      > CX DNS SERVER AND GOOGLE DNS ARE SAME" -ForegroundColor Green }
         else { Write-Host "      > CX DNS SERVER AND GOOGLE DNS ARE NOT SAME" -ForegroundColor Yellow }
+
+        if ($Endpoint.ENDPOINT_CX.Name -like "*.cloudapp.*" -or $Endpoint.ENDPOINT_CX.Name -like "*.control.*") 
+        { Write-Host "      > CX USING PUBLIC ENDPOINT" -ForegroundColor Cyan }
+        elseif ($Endpoint.ENDPOINT_CX.Name -like "*.privatelink.*") 
+        { Write-Host "      > CX USING PRIVATE ENDPOINT" -ForegroundColor Yellow }
+
+
     }
 }
 
@@ -356,30 +379,37 @@ Test-Endpoint $SynapseStudioEndpoint
 Test-Endpoint $AzureManagementEndpoint
 
 
-Write-Host "  ---------------------------------------------------"
+
+
+#####################################################################################
+Write-Host "  ----------------------------------------------------------------------------"
 Write-Host "  PORTS OPEN"
-Write-Host "  1433 -----------------------------------------------"
-foreach ($result in $Results1433)
-{
-    if($result.PortOpened -eq $true)
-    {Write-host "   > Port $($result.RemotePort) for $($result.RemoteHostname) is OPEN" -ForegroundColor Green }
-    else
-    {Write-host "   > Port $($result.RemotePort) for $($result.RemoteHostname) is CLOSED" -ForegroundColor Red } 
+
+<#
+.SYNOPSIS
+Just internal function to simplify tests and notes
+#>
+function Test-Ports {
+    param(
+        [Parameter(Position = 0)] $PortResults
+    );
+    process {
+        foreach ($result in $PortResults)
+        {
+            if($result.PortOpened -eq $true)
+            {Write-host "    > Port $($result.RemotePort) for $($result.RemoteHostname) is OPEN" -ForegroundColor Green }
+            else
+            {Write-host "    > Port $($result.RemotePort) for $($result.RemoteHostname) is CLOSED" -ForegroundColor Red } 
+        }
+    }
 }
-Write-Host "  > 1443 --------------------------------------------"
-foreach ($result in $Results1443)
-{
-    if($result.PortOpened -eq $true)
-    {Write-host "   > Port $($result.RemotePort) for $($result.RemoteHostname) is OPEN" -ForegroundColor Green }
-    else
-    {Write-host "   > Port $($result.RemotePort) for $($result.RemoteHostname) is CLOSED" -ForegroundColor Red } 
-}
-Write-Host "  > 443 ------------------------------------------------"
-foreach ($result in $Results443)
-{
-    if($result.PortOpened -eq $true)
-    {Write-host "   > Port $($result.RemotePort) for $($result.RemoteHostname) is OPEN" -ForegroundColor Green }
-    else
-    {Write-host "   > Port $($result.RemotePort) for $($result.RemoteHostname) is CLOSED" -ForegroundColor Red } 
-}
-Write-Host "  > ---------------------------------------------------"
+
+Write-Host "   > 1433 --------------------------------------------------------------------"
+Test-Ports $Results1433
+Write-Host "   > 1443 --------------------------------------------------------------------"
+Test-Ports $Results1443
+Write-Host "   > 443 ---------------------------------------------------------------------"
+Test-Ports $Results443
+
+
+Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow

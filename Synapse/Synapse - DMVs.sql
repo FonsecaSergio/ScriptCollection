@@ -118,7 +118,7 @@ FROM sys.dm_pdw_exec_sessions
 ---------------------------------------------------------------
 
 
-https://docs.microsoft.com/en-us/azure/synapse-analytics/sql-data-warehouse/analyze-your-workload
+--https://docs.microsoft.com/en-us/azure/synapse-analytics/sql-data-warehouse/analyze-your-workload
 SELECT  ro.[name]           AS [db_role_name]
 FROM    sys.database_principals ro
 WHERE   ro.[type_desc]      = 'DATABASE_ROLE'
@@ -188,7 +188,7 @@ WHERE    [session_id] <> SESSION_ID()
 
 
 ---------------------------------------------------------------
-https://docs.microsoft.com/en-us/azure/synapse-analytics/sql-data-warehouse/sql-data-warehouse-manage-monitor#monitor-query-execution
+--https://docs.microsoft.com/en-us/azure/synapse-analytics/sql-data-warehouse/sql-data-warehouse-manage-monitor#monitor-query-execution
 
 -- Find top 10 queries longest running queries
 SELECT TOP 10 *
@@ -259,6 +259,8 @@ JOIN sys.dm_pdw_nodes nod ON t.pdw_node_id = nod.pdw_node_id
 GROUP BY t.pdw_node_id, nod.[type]
 
 ---------------------------------------------------------------
+GO
+
 CREATE VIEW dbo.vTableSizes
 AS
 WITH base
