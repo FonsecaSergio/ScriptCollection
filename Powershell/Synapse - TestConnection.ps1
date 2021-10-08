@@ -10,6 +10,7 @@
 
 .DESCRIPTION
     - Check all Windows HOST File entries
+    - Check DNS configuration
     - Check name resolution for all possible endpoints used by Synapse
     - Check if ports needed are open (1433 / 1443 / 443)
 #> 
