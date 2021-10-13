@@ -61,7 +61,7 @@ $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $ur
 
 Write-Host ($result | ConvertTo-Json)
 
-<#
+#################################################################################
 # https://docs.microsoft.com/rest/api/synapse/data-plane/createroleassignment/createroleassignment
 # POST {endpoint}/rbac/roleAssignments?api-version=2020-02-01-preview
 
@@ -74,4 +74,3 @@ $body = @{ roleId = $workspaceAdminRole; principalId = $principalId; } | Convert
 $result = Invoke-RestMethod -Method Post -ContentType "application/json" -Uri $uri -Headers $headers -Body $body
 
 Write-Host ($result | ConvertTo-Json)
-#>
