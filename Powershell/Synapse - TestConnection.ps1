@@ -3,7 +3,7 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2021-10-08
+    Last Updated: 2021-11-04
 
 .SYNOPSIS   
     TEST SYNAPSE ENDPOINTS AND PORTS NEEDED
@@ -13,6 +13,10 @@
     - Check DNS configuration
     - Check name resolution for all possible endpoints used by Synapse
     - Check if ports needed are open (1433 / 1443 / 443)
+
+#UPDATES
+    - 2021-11-04. Name resolution now also looks to host files to check if HOST file entry match GOOGLE DNS entry
+
 #> 
 
 using namespace System.Net
@@ -353,20 +357,50 @@ function Test-Endpoint {
     param(
         [Parameter(Position = 0)] $Endpoint
     );
-    process {
+    process {        
         Write-Host "   ----------------------------------------------------------------------------"
         Write-Host "   > DNS for ($($Endpoint.NAME))"
         Write-Host "      > CX DNS:($($Endpoint.ENDPOINT_CX.IPAddress)) / NAME:($($Endpoint.ENDPOINT_CX.Name))"
+
+        $_HaveHostsFileEntry = $false
+
+        # CHECK ENTRY ON HOSTS
+
+        if ($HostsFileEntries.Count -gt 0) {
+            foreach ($HostsFileEntry in $HostsFileEntries)
+            {
+                if ($HostsFileEntry.HOST -eq $Endpoint.NAME) {
+                    $_HaveHostsFileEntry = $true
+                    Write-Host "      > CX HOST FILE:($($HostsFileEntry.IP)) / NAME:($($HostsFileEntry.HOST))" -ForegroundColor Red
+                    break
+                }    
+            }     
+        }
         Write-Host "      > Google DNS:($($Endpoint.ENDPOINT_GOOGLE.IPAddress)) / NAME:($($Endpoint.ENDPOINT_GOOGLE.Name))"
 
-        if ($Endpoint.ENDPOINT_CX.IPAddress -eq $Endpoint.ENDPOINT_GOOGLE.IPAddress) 
-        { Write-Host "      > CX DNS SERVER AND GOOGLE DNS ARE SAME" -ForegroundColor Green }
-        else { Write-Host "      > CX DNS SERVER AND GOOGLE DNS ARE NOT SAME" -ForegroundColor Yellow }
+        
 
-        if ($Endpoint.ENDPOINT_CX.Name -like "*.cloudapp.*" -or $Endpoint.ENDPOINT_CX.Name -like "*.control.*") 
-        { Write-Host "      > CX USING PUBLIC ENDPOINT" -ForegroundColor Cyan }
-        elseif ($Endpoint.ENDPOINT_CX.Name -like "*.privatelink.*") 
-        { Write-Host "      > CX USING PRIVATE ENDPOINT" -ForegroundColor Yellow }
+        if ($_HaveHostsFileEntry)
+        {# HAVE HOST FILE ENTRY
+            if ($HostsFileEntry.IP -eq $Endpoint.ENDPOINT_GOOGLE.IPAddress) 
+            { Write-Host "      > VM HOST FILE ENTRY AND GOOGLE DNS ARE SAME" -ForegroundColor Green }
+            else { Write-Host "      > VM HOST FILE ENTRY AND GOOGLE DNS ARE NOT SAME" -ForegroundColor Yellow }
+
+            Write-Host "      > CHECK HOSTS FILE ENTRY TO CHECK IF USING PRIVATE LINK or PUBLIC ENDPOINT" -ForegroundColor Yellow
+        }
+        else
+        {# DOES NOT HAVE HOST FILE ENTRY
+            if ($Endpoint.ENDPOINT_CX.IPAddress -eq $Endpoint.ENDPOINT_GOOGLE.IPAddress) 
+            { Write-Host "      > CX DNS SERVER AND GOOGLE DNS ARE SAME" -ForegroundColor Green }
+            else { Write-Host "      > CX DNS SERVER AND GOOGLE DNS ARE NOT SAME" -ForegroundColor Yellow }
+
+            if ($Endpoint.ENDPOINT_CX.Name -like "*.cloudapp.*" -or $Endpoint.ENDPOINT_CX.Name -like "*.control.*") 
+            { Write-Host "      > CX USING PUBLIC ENDPOINT" -ForegroundColor Cyan }
+            elseif ($Endpoint.ENDPOINT_CX.Name -like "*.privatelink.*") 
+            { Write-Host "      > CX USING PRIVATE ENDPOINT" -ForegroundColor Yellow }
+    
+        }
+
 
 
     }
