@@ -2,8 +2,24 @@
 Author: Sergio Fonseca
 Twitter @FonsecaSergio
 Email: sergio.fonseca@microsoft.com
-Last Update Date: 2020-10-25
+Last Update Date: 2021-11-25
 ************************************************/
+
+
+SELECT TOP 1000 
+     R.[Request_id]
+	,R.[session_id]
+    ,Request_queue_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[submit_time],R.[start_time]) / 1000.0)
+    ,Request_compile_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[end_compile_time],R.[start_time]) / 1000.0)
+    ,Request_execution_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[end_compile_time],R.[end_time]) / 1000.0)
+    ,Total_Elapsed_time_sec = CONVERT(numeric(25,2),R.[total_Elapsed_time] / 1000.0)
+    ,Total_Elapsed_time_min = CONVERT(numeric(25,2),R.[total_Elapsed_time] / 1000.0 / 60 )
+    ,R.* 
+FROM sys.dm_pdw_exec_requests R
+WHERE R.session_id <> session_id()
+AND submit_time >= DATEADD(hour, -2, sysdatetime()) 
+ORDER BY R.[total_Elapsed_time] DESC
+
 
 SELECT TOP 1000 
      R.[Request_id]

@@ -17,6 +17,13 @@
 #UPDATES
     - 2021-11-04. Name resolution now also looks to host files to check if HOST file entry match GOOGLE DNS entry
 
+#TODO
+    - On (Ports open) (Name Resolution) add note when name resoltion didn't work or didn't return ANY IP
+	> DNS for (xxxxxxxx.sql.azuresynapse.net)
+	> CX DNS:() / NAME:()
+	> Google DNS:(40.80.48.32) / NAME:(cr7.indiacentral1-a.control.database.windows.net)
+	> CX DNS SERVER AND GOOGLE DNS ARE NOT SAME
+
 #> 
 
 using namespace System.Net
