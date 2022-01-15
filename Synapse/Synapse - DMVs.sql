@@ -2,7 +2,7 @@
 Author: Sergio Fonseca
 Twitter @FonsecaSergio
 Email: sergio.fonseca@microsoft.com
-Last Update Date: 2021-11-25
+Last Update Date: 2022-01-15
 ************************************************/
 
 
@@ -18,6 +18,26 @@ SELECT TOP 1000
 FROM sys.dm_pdw_exec_requests R
 WHERE R.session_id <> session_id()
 AND submit_time >= DATEADD(hour, -2, sysdatetime()) 
+ORDER BY R.[total_Elapsed_time] DESC
+
+SELECT TOP 1000
+	R.[Request_id]
+	,R.[session_id]
+	,Request_queue_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[submit_time],R.[start_time]) / 1000.0)
+	,Request_compile_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[end_compile_time],R.[start_time]) / 1000.0)
+	,Request_execution_time_sec = CONVERT(numeric(25,3),DATEDIFF(ms,R.[end_compile_time],R.[end_time]) / 1000.0)
+	,Total_Elapsed_time_sec = CONVERT(numeric(25,2),R.[total_Elapsed_time] / 1000.0)
+	,Total_Elapsed_time_min = CONVERT(numeric(25,2),R.[total_Elapsed_time] / 1000.0 / 60 )
+	,[row_count] = RS.[row_count]
+	,R.*
+	,S.*
+FROM sys.dm_pdw_exec_requests R
+LEFT JOIN (SELECT request_id, row_count = MAX(row_count) FROM sys.dm_pdw_request_steps WHERE operation_type = 'ReturnOperation' GROUP BY request_id) RS
+	ON R.request_id = RS.request_id
+INNER JOIN sys.dm_pdw_exec_sessions S
+	ON R.session_id = S.session_id
+WHERE R.session_id <> session_id()
+AND submit_time >= DATEADD(hour, -2, sysdatetime())
 ORDER BY R.[total_Elapsed_time] DESC
 
 
