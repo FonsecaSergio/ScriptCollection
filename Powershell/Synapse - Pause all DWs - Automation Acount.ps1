@@ -10,11 +10,11 @@
 .DESCRIPTION    
     https://docs.microsoft.com/en-us/azure/automation/automation-alert-metric
  
-.PARAMETER SubscriptionName  
+.PARAMETER SubscriptionId  
        
 #> 
 param (
-    [string]$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption",
+    [string]$SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b",
     [bool]$debug = $false
 )
 
@@ -36,12 +36,12 @@ $ErrorActionPreference = "Continue"
 [System.Collections.ArrayList]$SynapseSqlPools = @()
 
 ##########################################################################################################################################################
-#Connect
+#Connect using Automation Account
 ##########################################################################################################################################################
 #https://docs.microsoft.com/en-us/azure/automation/automation-connections?tabs=azure-powershell#get-a-connection-in-a-runbook-or-dsc-configuration
 
 $Conn = Get-AutomationConnection -Name "AzureRunAsConnection"
-Connect-AzAccount -ServicePrincipal -Tenant $Conn.TenantID -ApplicationId $Conn.ApplicationID -CertificateThumbprint $Conn.CertificateThumbprint -Subscription $SubscriptionName
+Connect-AzAccount -ServicePrincipal -Tenant $Conn.TenantID -ApplicationId $Conn.ApplicationID -CertificateThumbprint $Conn.CertificateThumbprint -Subscription $SubscriptionId
 
 ##########################################################################################################################################################
 #Get SQL / Synapse RESOURCES

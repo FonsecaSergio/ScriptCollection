@@ -10,11 +10,11 @@
 .DESCRIPTION    
     https://docs.microsoft.com/en-us/azure/automation/automation-alert-metric
  
-.PARAMETER SubscriptionName  
+.PARAMETER SubscriptionId  
        
 #> 
 param (
-    [string]$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption",
+    [string]$SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b",
     [bool]$debug = $false
 )
 
@@ -39,28 +39,31 @@ $ErrorActionPreference = "Continue"
 [System.Collections.ArrayList]$SynapseSqlPools = @()
 
 ##########################################################################################################################################################
-#Connect
+#CONNECT TO AZURE
 ##########################################################################################################################################################
-#Disconnect-AzAccount
+
+#Connect-AzAccount -Subscription $SubscriptionId
+#Below process will authenticate with your current windows account
 
 $Context = Get-AzContext
 
 if ($Context -eq $null) {
-    Write-Output "Need to login"
-    Connect-AzAccount -Subscription $SubscriptionName
+    Write-Information "Need to login"
+    Connect-AzAccount -Subscription $SubscriptionId
 }
-else {
-    Write-Output "Context exists"
-    Write-Output "Current credential is $($Context.Account.Id)"
-    if ($Context.Subscription.Name -ne $SubscriptionName) {
-        $Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -WarningAction Ignore
-        Select-AzSubscription -Subscription $Subscription.Id | Out-Null
-        Write-Output "Current subscription is $($Subscription.Name)"
+else
+{
+    Write-Host "Context exists"
+    Write-Host "Current credential is $($Context.Account.Id)"
+    if ($Context.Subscription.Id -ne $SubscriptionId) {
+        $result = Select-AzSubscription -Subscription $SubscriptionId
+        Write-Host "Current subscription is $($result.Subscription.Name)"
     }
     else {
-        Write-Output "Current subscription is $($Context.Subscription.Name)"    
-    }    
+        Write-Host "Current subscription is $($Context.Subscription.Name)"    
+    }
 }
+########################################################################################################
 
 
 ##########################################################################################################################################################

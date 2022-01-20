@@ -1,4 +1,4 @@
-﻿$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
+﻿$SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b"
 
 $workspaceName = "fonsecanetsynapse"
 $ResourceGroup = "SynapseWorkspace"
@@ -15,32 +15,30 @@ Import-Module Az.Accounts
 
 ########################################################################################################
 #CONNECT TO AZURE
-Clear-Host
+
+#Connect-AzAccount -Subscription $SubscriptionId
+#Below process will authenticate with your current windows account
 
 $Context = Get-AzContext
 
 if ($Context -eq $null) {
     Write-Information "Need to login"
-    $x = Connect-AzAccount -Subscription $SubscriptionName
-    $SubscriptionId = $x.Context.Subscription.Id
+    Connect-AzAccount -Subscription $SubscriptionId
 }
 else
 {
     Write-Host "Context exists"
     Write-Host "Current credential is $($Context.Account.Id)"
-    if ($Context.Subscription.Name -ne $SubscriptionName) {
-        $Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -WarningAction Ignore
-        Select-AzSubscription -Subscription $Subscription.Id | Out-Null
-        Write-Host "Current subscription is $($Subscription.Name)"
-        $SubscriptionId = $Subscription.Id
+    if ($Context.Subscription.Id -ne $SubscriptionId) {
+        $result = Select-AzSubscription -Subscription $SubscriptionId
+        Write-Host "Current subscription is $($result.Subscription.Name)"
     }
     else {
         Write-Host "Current subscription is $($Context.Subscription.Name)"    
-        $SubscriptionId = $Context.Subscription.Id
     }
 }
-
 ########################################################################################################
+
 #https://docs.microsoft.com/en-us/rest/api/synapse/sqlserver/workspace-managed-sql-server-blob-auditing-policies/create-or-update
 #PUT https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Synapse/workspaces/{workspaceName}/auditingSettings/default?api-version=2021-06-01
 # ------------------------------------------
@@ -49,7 +47,7 @@ $token = (Get-AzAccessToken -Resource "https://management.azure.com").Token
 $headers = @{ Authorization = "Bearer $token" }
 
 # ------------------------------------------
-$uri = "https://management.azure.com/subscriptions/$SubscriptionID/resourcegroups/$ResourceGroup/providers/Microsoft.Synapse/workspaces/$workspaceName/auditingSettings/default?api-version=2021-06-01"
+$uri = "https://management.azure.com/subscriptions/$SubscriptionId/resourcegroups/$ResourceGroup/providers/Microsoft.Synapse/workspaces/$workspaceName/auditingSettings/default?api-version=2021-06-01"
 $uri
 
 $body = @"
@@ -88,7 +86,7 @@ Write-Host ($result | ConvertTo-Json)
 #https://management.azure.com//subscriptions/<subId>/resourceGroups/<rgName>/providers/Microsoft.Synapse/workspaces/<wsName>/providers/microsoft.insights/diagnosticSettings/SQLSecurityAuditEvents_3d229c42-c7e7-4c97-9a99-ec0d0d8b86c1?api-version=2017-05-01-preview
 
 # ------------------------------------------
-$uri = "https://management.azure.com/subscriptions/$SubscriptionID/resourcegroups/$ResourceGroup/providers/Microsoft.Synapse/workspaces/$workspaceName/providers/microsoft.insights/diagnosticSettings/$($DiagnosticsName)?api-version=2021-05-01-preview"
+$uri = "https://management.azure.com/subscriptions/$SubscriptionId/resourcegroups/$ResourceGroup/providers/Microsoft.Synapse/workspaces/$workspaceName/providers/microsoft.insights/diagnosticSettings/$($DiagnosticsName)?api-version=2021-05-01-preview"
 $uri
 
 $body = @"
@@ -105,7 +103,7 @@ $body = @"
 				}
 			}
 		],
-		"workspaceId": "/subscriptions/$SubscriptionID/resourcegroups/$LogResGroup/providers/Microsoft.OperationalInsights/workspaces/$LogAnalyticsName"
+		"workspaceId": "/subscriptions/$SubscriptionId/resourcegroups/$LogResGroup/providers/Microsoft.OperationalInsights/workspaces/$LogAnalyticsName"
 	}
 }
 "@

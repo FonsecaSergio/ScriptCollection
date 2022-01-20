@@ -19,6 +19,9 @@ $SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b"
 ########################################################################################################
 #CONNECT TO AZURE
 
+#Connect-AzAccount -Subscription $SubscriptionId
+#Below process will authenticate with your current windows account
+
 $Context = Get-AzContext
 
 if ($Context -eq $null) {

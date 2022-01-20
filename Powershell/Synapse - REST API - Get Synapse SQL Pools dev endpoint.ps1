@@ -23,6 +23,9 @@ Import-Module Az.Accounts
 ########################################################################################################
 #CONNECT TO AZURE
 
+#Connect-AzAccount -Subscription $SubscriptionId
+#Below process will authenticate with your current windows account
+
 $Context = Get-AzContext
 
 if ($Context -eq $null) {

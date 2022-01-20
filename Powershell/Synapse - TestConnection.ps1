@@ -19,11 +19,12 @@
 
 #TODO
     - On (Ports open) (Name Resolution) add note when name resoltion didn't work or didn't return ANY IP
-	> DNS for (xxxxxxxx.sql.azuresynapse.net)
-	> CX DNS:() / NAME:()
-	> Google DNS:(40.80.48.32) / NAME:(cr7.indiacentral1-a.control.database.windows.net)
-	> CX DNS SERVER AND GOOGLE DNS ARE NOT SAME
+	  > DNS for (xxxxxxxx.sql.azuresynapse.net)
+	  > CX DNS:() / NAME:()
+	  > Google DNS:(40.80.48.32) / NAME:(cr7.indiacentral1-a.control.database.windows.net)
+	  > CX DNS SERVER AND GOOGLE DNS ARE NOT SAME
 
+    - Prepare script to not fail when cx do not have access to test to google dns 8.8.8.8
 #> 
 
 using namespace System.Net

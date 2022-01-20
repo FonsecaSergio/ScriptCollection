@@ -3,7 +3,7 @@ ACTIVATE SYNAPSE WORKSPACE
 #>
 
 $workspaceName = "fonsecanetcmk"
-$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption"
+$SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b"
 $ResourceGroup = "testCMK"
 $keyName = "AzureSQLDBKey"
 $vaultName = "FonsecanetKeyVault"
@@ -15,32 +15,30 @@ Import-Module Az.Accounts
 
 ########################################################################################################
 #CONNECT TO AZURE
-Clear-Host
+
+#Connect-AzAccount -Subscription $SubscriptionId
+#Below process will authenticate with your current windows account
 
 $Context = Get-AzContext
 
 if ($Context -eq $null) {
     Write-Information "Need to login"
-    $x = Connect-AzAccount -Subscription $SubscriptionName
-    $SubscriptionId = $x.Context.Subscription.Id
+    Connect-AzAccount -Subscription $SubscriptionId
 }
 else
 {
     Write-Host "Context exists"
     Write-Host "Current credential is $($Context.Account.Id)"
-    if ($Context.Subscription.Name -ne $SubscriptionName) {
-        $Subscription = Get-AzSubscription -SubscriptionName $SubscriptionName -WarningAction Ignore
-        Select-AzSubscription -Subscription $Subscription.Id | Out-Null
-        Write-Host "Current subscription is $($Subscription.Name)"
-        $SubscriptionId = $Subscription.Id
+    if ($Context.Subscription.Id -ne $SubscriptionId) {
+        $result = Select-AzSubscription -Subscription $SubscriptionId
+        Write-Host "Current subscription is $($result.Subscription.Name)"
     }
     else {
         Write-Host "Current subscription is $($Context.Subscription.Name)"    
-        $SubscriptionId = $Context.Subscription.Id
     }
 }
-
 ########################################################################################################
+
 # ------------------------------------------
 # get Bearer token for current user for Synapse Workspace API
 $token = (Get-AzAccessToken -Resource "https://management.azure.com").Token
