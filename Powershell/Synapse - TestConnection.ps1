@@ -14,6 +14,9 @@
     For SQL connectivity test use
         https://github.com/Azure/SQL-Connectivity-Checker/blob/master/AzureSQLConnectivityChecker.ps1
 
+    Script also available at
+     - https://github.com/Azure-Samples/Synapse/blob/main/PowerShell/Synapse-TestConnection.ps1
+
 .PARAMETER WorkspaceName
 
 .DESCRIPTION
