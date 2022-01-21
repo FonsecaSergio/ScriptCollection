@@ -3,7 +3,7 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2020-02-07
+    Last Updated: 2022-01-21
 
 .SYNOPSIS   
    
@@ -53,7 +53,7 @@ Write-Output "------------------------------------------------------------------
 
 try {
     $AzureSQLServers = @(Get-AzSqlServer -ErrorAction Stop)
-    $AzureSynapseWorkspaces = @(Get-AzSynapseWorkspace -ErrorAction Stop)        
+    $AzureSynapseWorkspaces = @(Get-AzSynapseWorkspace | Where-Object { $_.ExtraProperties.WorkspaceType -eq "Normal" } -ErrorAction Stop) #Filter connected synapse workspace with former SQL DW. Pause commands are different
 }
 catch {
     $iErrorCount += 1;
