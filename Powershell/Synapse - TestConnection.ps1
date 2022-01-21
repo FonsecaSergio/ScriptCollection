@@ -3,114 +3,83 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2021-11-04
+    Last Updated: 2022-01-21
 
 .SYNOPSIS   
     TEST SYNAPSE ENDPOINTS AND PORTS NEEDED
+    
+    This script does not really try to connect to endpoint, just check the ports. For full test you can use
+        https://docs.microsoft.com/en-us/azure/synapse-analytics/troubleshoot/troubleshoot-synapse-studio-powershell
+
+    For SQL connectivity test use
+        https://github.com/Azure/SQL-Connectivity-Checker/blob/master/AzureSQLConnectivityChecker.ps1
+
+.PARAMETER WorkspaceName
 
 .DESCRIPTION
     - Check all Windows HOST File entries
     - Check DNS configuration
-    - Check name resolution for all possible endpoints used by Synapse
+    - Check name resolution for all possible endpoints used by Synapse and compare it with public DNS
     - Check if ports needed are open (1433 / 1443 / 443)
 
 #UPDATES
-    - 2021-11-04. Name resolution now also looks to host files to check if HOST file entry match GOOGLE DNS entry
+    - 2021-11-04 - Name resolution now also looks to host files to check if HOST file entry match Public DNS entry
+    - 2022-01-21 - Shows note when open dns / cx dns name resultion fail
+                 - Fix for when name resultion fails "No such host is known". Sample workspaces conected to former SQL DW does not resolve SERVERNAME.sql.azuresynapse.net
 
-#TODO
-    - On (Ports open) (Name Resolution) add note when name resoltion didn't work or didn't return ANY IP
-	  > DNS for (xxxxxxxx.sql.azuresynapse.net)
-	  > CX DNS:() / NAME:()
-	  > Google DNS:(40.80.48.32) / NAME:(cr7.indiacentral1-a.control.database.windows.net)
-	  > CX DNS SERVER AND GOOGLE DNS ARE NOT SAME
-
-    - Prepare script to not fail when cx do not have access to test to google dns 8.8.8.8
 #> 
 
 using namespace System.Net
 
-Clear-Host
-####################################################
+param (
+    [string]$WorkspaceName = "xpto"
+)
 
-$WorkspaceName = "fonsecanetsynapse"
+Clear-Host
+
+####################################################
+#OTHER PARAMETERS
+$DNSPublic = "8.8.8.8" #GoogleDNS
+$TestPortConnectionTimeoutMs = 1000
 
 ####################################################
 #ENDPOINTS
 $SynapseSQLEndpoint = @{ NAME = "$($WorkspaceName).sql.azuresynapse.net"
 ENDPOINT_CX = $null
-ENDPOINT_GOOGLE = $null
+ENDPOINT_PUBLICDNS = $null
 };
 
 $SynapseServelessEndpoint = @{ NAME = "$($WorkspaceName)-ondemand.sql.azuresynapse.net"
 ENDPOINT_CX = $null
-ENDPOINT_GOOGLE = $null
+ENDPOINT_PUBLICDNS = $null
 };
 
 $SynapseDevEndpoint = @{ NAME = "$($WorkspaceName).dev.azuresynapse.net"
 ENDPOINT_CX = $null
-ENDPOINT_GOOGLE = $null
+ENDPOINT_PUBLICDNS = $null
 };
 
 $SQLDatabaseEndpoint = @{ NAME = "$($WorkspaceName).database.windows.net"
 ENDPOINT_CX = $null
-ENDPOINT_GOOGLE = $null
+ENDPOINT_PUBLICDNS = $null
 };
 
 $SynapseStudioEndpoint = @{ NAME = "web.azuresynapse.net"
 ENDPOINT_CX = $null
-ENDPOINT_GOOGLE = $null
+ENDPOINT_PUBLICDNS = $null
 };
 
 $AzureManagementEndpoint = @{ NAME = "management.azure.com"
 ENDPOINT_CX = $null
-ENDPOINT_GOOGLE = $null
+ENDPOINT_PUBLICDNS = $null
 };
 
-$DNSGoogle = "8.8.8.8" #GoogleDNS
-#$DNSGoogle = "127.0.0.1" #GoogleDNS
-
-$TestPortConnectionTimeoutMs = 1000
 ####################################################
 
-
-#----------------------------------------------------------------------------------------------------------------------
-#https://github.com/Azure/SQL-Connectivity-Checker/blob/master/AzureSQLConnectivityChecker.ps1
-<#
 function Resolve-DnsName_Internal {
     param(
         [Parameter(Position = 0)] $Name,
-        [Parameter()] $Server,
-        [switch] $CacheOnly,
-        [switch] $DnsOnly,
-        [switch] $NoHostsFile
-    );
-    process {
-        try {
-            if ($Server -ne $null) {
-                Write-Host " -Trying to resolve DNS for $($Name) with DNS Server $($Server)" -ForegroundColor DarkGray
-                # NOT CURRENTLY WORKING
-            }
-            else {
-                Write-Host " -Trying to resolve DNS for $($Name) from Customer DNS" -ForegroundColor DarkGray
-            }
-            
-            return @{ IPAddress = [System.Net.DNS]::GetHostAddresses($Name).IPAddressToString };
-        }
-        catch {
-            Write-Host " -Error at Resolve-DnsName_Internal: $($_.Exception.Message)" -ForegroundColor REd
-        }
-    }
-}
-
-#>
-
-function Resolve-DnsName_Internal {
-    param(
-        [Parameter(Position = 0)] $Name,
-        [string] $Server,
-        [switch] $CacheOnly,
-        [switch] $DnsOnly,
-        [switch] $NoHostsFile
+        [string] $Server
     );
     process {
         try {
@@ -174,7 +143,20 @@ function Test-Port {
             }
 
             $tcpClient = New-Object System.Net.Sockets.TcpClient
-            $portOpened = $tcpClient.ConnectAsync($remoteHostname, $remotePort).Wait($Timeout)
+            try {
+                $portOpened = $tcpClient.ConnectAsync($remoteHostname, $remotePort).Wait($Timeout)    
+            }
+            catch {
+                if ($_.Exception.InnerException.InnerException -ne $null)
+                {
+                    if ($_.Exception.InnerException.InnerException.ErrorCode -eq 11001) { #11001 No such host is known                        
+                        Write-Host " -Error at Test-Port: ($($remoteHostname):$($remotePort)) - $($_.Exception.InnerException.InnerException.Message)" -ForegroundColor REd
+                    }
+                }
+                else {
+                    Write-Host " -Error at Test-Port: $($_.Exception.Message)" -ForegroundColor REd
+                }                
+            }           
 
             $null = $result.Add([PSCustomObject]@{
                 RemoteHostname       = $remoteHostname
@@ -215,14 +197,18 @@ function Get-HostsFilesEntries {
 
 #----------------------------------------------------------------------------------------------------------------------
 function Get-DnsCxServerAddresses {   
+    $AddressFamilyIPV4 = 2 #AddressFamily -eq 2 = "IPv4"
+
     $DNSServers = Get-DnsClientServerAddress | `
-        Where-Object {$_.AddressFamily -eq 2 <#"IPv4"#>} |  `
+        Where-Object {$_.AddressFamily -eq $AddressFamilyIPV4 } | ` 
         Select-Object –ExpandProperty ServerAddresses -Unique
 
     return $DNSServers
 }
-
 #----------------------------------------------------------------------------------------------------------------------
+
+# RESERVED FOR FUTURE USE
+<#
 #http://www.padisetty.com/2014/05/powershell-bit-manipulation-and-network.html
 #checkSubnet "20.36.105.32/29" "20.36.104.6" #FALSE
 #checkSubnet "20.36.105.0/24" "20.36.105.10" #TRUE
@@ -239,6 +225,7 @@ function checkSubnet ([string]$cidr, [string]$ip) {
 
     $unetwork -eq ($mask -band $uip)
 }
+#>
 #----------------------------------------------------------------------------------------------------------------------
 
 
@@ -265,10 +252,11 @@ $DnsCxServerAddresses = @(Get-DnsCxServerAddresses)
 
 Get-DnsClientServerAddress | ? serveraddresses
 
+
 ####################################################
 # Resolve using current DNS
 Write-Host "  ----------------------------------------------------------------------------"
-Write-Host "  TEST NAME RESOLUTION"
+Write-Host "  TEST NAME RESOLUTION - CX DNS"
 $SynapseSQLEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SynapseSQLEndpoint.NAME
 $SynapseServelessEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SynapseServelessEndpoint.NAME
 $SynapseDevEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SynapseDevEndpoint.NAME
@@ -276,12 +264,14 @@ $SQLDatabaseEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SQLDatabaseEndpoint
 $SynapseStudioEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SynapseStudioEndpoint.NAME
 $AzureManagementEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $AzureManagementEndpoint.NAME
 
-$SynapseSQLEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $SynapseSQLEndpoint.NAME -Server $DNSGoogle
-$SynapseServelessEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $SynapseServelessEndpoint.NAME -Server $DNSGoogle
-$SynapseDevEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $SynapseDevEndpoint.NAME -Server $DNSGoogle
-$SQLDatabaseEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $SQLDatabaseEndpoint.NAME -Server $DNSGoogle
-$SynapseStudioEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $SynapseStudioEndpoint.NAME -Server $DNSGoogle
-$AzureManagementEndpoint.ENDPOINT_GOOGLE = Resolve-DnsName_Internal $AzureManagementEndpoint.NAME -Server $DNSGoogle
+Write-Host "  ----------------------------------------------------------------------------"
+Write-Host "  TEST NAME RESOLUTION - PUBLIC DNS TEST - NOT A PROBLEM IF FAIL"
+$SynapseSQLEndpoint.ENDPOINT_PUBLICDNS = Resolve-DnsName_Internal $SynapseSQLEndpoint.NAME -Server $DNSPublic
+$SynapseServelessEndpoint.ENDPOINT_PUBLICDNS = Resolve-DnsName_Internal $SynapseServelessEndpoint.NAME -Server $DNSPublic
+$SynapseDevEndpoint.ENDPOINT_PUBLICDNS = Resolve-DnsName_Internal $SynapseDevEndpoint.NAME -Server $DNSPublic
+$SQLDatabaseEndpoint.ENDPOINT_PUBLICDNS = Resolve-DnsName_Internal $SQLDatabaseEndpoint.NAME -Server $DNSPublic
+$SynapseStudioEndpoint.ENDPOINT_PUBLICDNS = Resolve-DnsName_Internal $SynapseStudioEndpoint.NAME -Server $DNSPublic
+$AzureManagementEndpoint.ENDPOINT_PUBLICDNS = Resolve-DnsName_Internal $AzureManagementEndpoint.NAME -Server $DNSPublic
 
 
 ####################################################
@@ -384,33 +374,37 @@ function Test-Endpoint {
                 }    
             }     
         }
-        Write-Host "      > Google DNS:($($Endpoint.ENDPOINT_GOOGLE.IPAddress)) / NAME:($($Endpoint.ENDPOINT_GOOGLE.Name))"
+        Write-Host "      > Public DNS:($($Endpoint.ENDPOINT_PUBLICDNS.IPAddress)) / NAME:($($Endpoint.ENDPOINT_PUBLICDNS.Name))"
 
         
 
+        if ($Endpoint.ENDPOINT_PUBLICDNS.IPAddress -eq $null) 
+        { Write-Host "      > PUBLIC NAME RESOLUTION DIDN'T WORK - DOES NOT MEAN A PROBLEM - Just could not reach Public DNS ($($DNSPublic)) to compare" -ForegroundColor Yellow }
+
         if ($_HaveHostsFileEntry)
         {# HAVE HOST FILE ENTRY
-            if ($HostsFileEntry.IP -eq $Endpoint.ENDPOINT_GOOGLE.IPAddress) 
-            { Write-Host "      > VM HOST FILE ENTRY AND GOOGLE DNS ARE SAME" -ForegroundColor Green }
-            else { Write-Host "      > VM HOST FILE ENTRY AND GOOGLE DNS ARE NOT SAME" -ForegroundColor Yellow }
+            
+            if ($HostsFileEntry.IP -eq $Endpoint.ENDPOINT_PUBLICDNS.IPAddress) 
+            { Write-Host "      > VM HOST FILE ENTRY AND PUBLIC DNS ARE SAME" -ForegroundColor Green }
+            else { Write-Host "      > VM HOST FILE ENTRY AND PUBLIC DNS ARE NOT SAME" -ForegroundColor Yellow }
 
             Write-Host "      > CHECK HOSTS FILE ENTRY TO CHECK IF USING PRIVATE LINK or PUBLIC ENDPOINT" -ForegroundColor Yellow
         }
         else
         {# DOES NOT HAVE HOST FILE ENTRY
-            if ($Endpoint.ENDPOINT_CX.IPAddress -eq $Endpoint.ENDPOINT_GOOGLE.IPAddress) 
-            { Write-Host "      > CX DNS SERVER AND GOOGLE DNS ARE SAME" -ForegroundColor Green }
-            else { Write-Host "      > CX DNS SERVER AND GOOGLE DNS ARE NOT SAME" -ForegroundColor Yellow }
-
-            if ($Endpoint.ENDPOINT_CX.Name -like "*.cloudapp.*" -or $Endpoint.ENDPOINT_CX.Name -like "*.control.*") 
-            { Write-Host "      > CX USING PUBLIC ENDPOINT" -ForegroundColor Cyan }
-            elseif ($Endpoint.ENDPOINT_CX.Name -like "*.privatelink.*") 
-            { Write-Host "      > CX USING PRIVATE ENDPOINT" -ForegroundColor Yellow }
+            if ($Endpoint.ENDPOINT_CX.IPAddress -eq $null) 
+            { Write-Host "      > CX NAME RESOLUTION DIDN'T WORK" -ForegroundColor Red }
+            else {
+                if ($Endpoint.ENDPOINT_CX.IPAddress -eq $Endpoint.ENDPOINT_PUBLICDNS.IPAddress) 
+                { Write-Host "      > CX DNS SERVER AND PUBLIC DNS ARE SAME" -ForegroundColor Green }
+                else { Write-Host "      > CX DNS SERVER AND PUBLIC DNS ARE NOT SAME" -ForegroundColor Yellow }
     
+                if ($Endpoint.ENDPOINT_CX.Name -like "*.cloudapp.*" -or $Endpoint.ENDPOINT_CX.Name -like "*.control.*") 
+                { Write-Host "      > CX USING PUBLIC ENDPOINT" -ForegroundColor Cyan }
+                elseif ($Endpoint.ENDPOINT_CX.Name -like "*.privatelink.*") 
+                { Write-Host "      > CX USING PRIVATE ENDPOINT" -ForegroundColor Yellow }                   
+            } 
         }
-
-
-
     }
 }
 
