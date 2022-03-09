@@ -3,7 +3,7 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2021-03-11
+    Last Updated: 2022-03-08
 
 .SYNOPSIS   
    GET SYNAPSE SQL POOLS FROM SYNAPSE DEV ENDPOINT
@@ -62,4 +62,10 @@ $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $ur
 
 Write-Host ($result | ConvertTo-Json)
 
+foreach ($Pool in $result.value)
+{
 
+$Pool.name
+$Pool.properties.status
+
+}
