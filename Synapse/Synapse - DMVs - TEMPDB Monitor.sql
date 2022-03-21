@@ -6,14 +6,24 @@ Last Update Date: 2022-03-21
 - Queries to monitor TEMPDB usage on Synapse
 ************************************************/
 
+-- Monitor tempdb per Database
 SELECT  
-	Tempdb_Space_Allocated_MB = CONVERT(numeric(25,2),(SUM((ssu.user_objects_alloc_page_count * 8)) + SUM((ssu.internal_objects_alloc_page_count * 8))) / 1024.0)
+	Tempdb_Space_Allocated_MB = CONVERT(numeric(25,2),
+		(
+			SUM((ssu.user_objects_alloc_page_count * 8)) + 
+		    SUM((ssu.internal_objects_alloc_page_count * 8))
+		) / 1024.0)
 FROM sys.dm_pdw_nodes_db_session_space_usage AS ssu 
 WHERE DB_NAME(ssu.database_id) = 'tempdb' 
 
+-- Monitor tempdb per Node Id
 SELECT  
 	 ssu.pdw_node_id
-	,Tempdb_Space_Allocated_MB = CONVERT(numeric(25,2),(SUM((ssu.user_objects_alloc_page_count * 8)) + SUM((ssu.internal_objects_alloc_page_count * 8))) / 1024.0)
+	,Tempdb_Space_Allocated_MB = CONVERT(numeric(25,2),
+		(
+			SUM((ssu.user_objects_alloc_page_count * 8)) + 
+		    SUM((ssu.internal_objects_alloc_page_count * 8))
+		) / 1024.0)
 FROM sys.dm_pdw_nodes_db_session_space_usage AS ssu 
 WHERE DB_NAME(ssu.database_id) = 'tempdb' 
 GROUP BY ssu.pdw_node_id
