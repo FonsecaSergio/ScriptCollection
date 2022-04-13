@@ -530,6 +530,128 @@ FROM
 WHERE
     st.[user_created] = 1;
 ---------------------------------------------------------------
+
+
+
+
+DMVs:
+
+--- Currently running and queued requests
+SELECT COUNT(*) AS QueryCount, status
+FROM sys.dm_pdw_exec_requests
+GROUP BY status
+ORDER BY QueryCount
+
+ 
+
+--- Shows queries waiting for resources
+
+SELECT COUNT(*) AS QueryCount, state, type
+FROM sys.dm_pdw_resource_waits
+GROUP BY type, state
+ORDER BY QueryCount
+
+----
+select * from sys.dm_pdw_nodes_tran_locks where request_status = 'WAIT'
+
+---
+
+/*
+	The following query can be used to determine what resources a request is waiting for.
+	Source: https://docs.microsoft.com/en-us/azure/sql-data-warehouse/analyze-your-workload
+*/
+SELECT  w.[wait_id]
+,       w.[session_id]
+,       w.[type]                                           AS Wait_type
+,       w.[object_type]
+,       w.[object_name]
+,       w.[request_id]
+,       w.[request_time]
+,       w.[acquire_time]
+,       w.[state]
+,       w.[priority]
+,       SESSION_ID()                                       AS Current_session
+,       s.[status]                                         AS Session_status
+,       s.[login_name]
+,       s.[query_count]
+,       s.[client_id]
+,       s.[sql_spid]
+,       r.[command]                                        AS Request_command
+,       r.[label]
+,       r.[status]                                         AS Request_status
+,       r.[submit_time]
+,       r.[start_time]
+,       r.[end_compile_time]
+,       r.[end_time]
+,       DATEDIFF(ms,r.[submit_time],r.[start_time])        AS Request_queue_time_ms
+,       DATEDIFF(ms,r.[start_time],r.[end_compile_time])   AS Request_compile_time_ms
+,       DATEDIFF(ms,r.[end_compile_time],r.[end_time])     AS Request_execution_time_ms
+,       r.[total_elapsed_time]
+FROM    sys.dm_pdw_waits w
+JOIN    sys.dm_pdw_exec_sessions s  ON w.[session_id] = s.[session_id]
+JOIN    sys.dm_pdw_exec_requests r  ON w.[request_id] = r.[request_id]
+WHERE    w.[session_id] <> SESSION_ID()
+;
+
+---
+ /*
+	NOTE: THIS QUERY IS NOT 100% ACCURATE, but is helpful in most cases. It attempts to link waiting queries to other queries that are blocking them.
+    Sometimes if there are multiple queries blocking the waiting query, it cannot correctly identify the first query in the blocking chain.  
+*/
+
+WITH 
+WaitingSidsList AS (
+	SELECT 
+		DateDiff(minute, waiting_waits.request_time, getdate()) as Wait_Time,
+		waiting_waits.session_id AS        'Waiting_SID',
+		waiting_waits.request_id AS        'Waiting_QID',
+		blocking_waits.session_id AS    'Blocking_SID',
+		blocking_waits.request_id AS    'Blocking_QID',
+		waiting_waits.wait_id AS        'waiting_waitID',
+		waiting_sessions.login_name AS    'Waiting_Login_Name',
+		blocking_sessions.login_name AS    'Blocking_Login_Name',
+		waiting_sessions.app_name AS    'Waiting_App_Name',
+		blocking_sessions.app_name AS    'Blocking_App_name',
+		waiting_PER.command AS            'Waiting_command',
+		blocking_PER.command AS            'Blocking_command'
+	FROM sys.dm_pdw_waits waiting_waits
+	JOIN sys.dm_pdw_waits blocking_waits
+		on waiting_waits.object_name = blocking_waits.object_name
+		and waiting_waits.request_id != blocking_waits.request_id
+	LEFT JOIN sys.dm_pdw_exec_sessions waiting_sessions
+		ON waiting_waits.session_id = waiting_sessions.session_id
+	LEFT JOIN sys.dm_pdw_exec_sessions blocking_sessions
+		ON blocking_waits.session_id = blocking_sessions.session_id
+	LEFT JOIN sys.dm_pdw_exec_requests waiting_PER
+		ON waiting_PER.request_id = Waiting_waits.request_id
+	LEFT JOIN sys.dm_pdw_exec_requests blocking_PER
+		ON blocking_PER.request_id = blocking_waits.request_id
+	WHERE waiting_waits.state = 'queued'
+), 
+MAX_WaitingSidsList AS (
+	SELECT    Waiting_SID,
+			MAX(waiting_waitID) as 'MAX_WaitID'
+	FROM WaitingSidsList
+	GROUP BY waiting_SID
+) SELECT 
+	 WaitingSidsList.Wait_Time AS 'Wait_Time_(M)',
+	 WaitingSidsList.Waiting_SID,
+	 WaitingSidsList.Waiting_QID,
+	 WaitingSidsList.Blocking_SID,
+	 WaitingSidsList.Blocking_QID,
+	 WaitingSidsList.Waiting_Login_Name,
+	 WaitingSidsList.Blocking_Login_Name,
+	 WaitingSidsList.Waiting_App_Name,
+	 WaitingSidsList.Blocking_App_name,
+	 WaitingSidsList.Waiting_command,
+	 WaitingSidsList.Blocking_command
+FROM MAX_WaitingSidsList
+JOIN WaitingSidsList
+	ON MAX_WaitingSidsList.waiting_SID = WaitingSidsList.Waiting_SID
+	AND MAX_WaitingSidsList.MAX_WaitID = WaitingSidsList.waiting_waitID
+
+
+
 ---------------------------------------------------------------
 ---------------------------------------------------------------
 ---------------------------------------------------------------

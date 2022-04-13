@@ -30,6 +30,12 @@
     - 2022-01-21 - Shows note when open dns / cx dns name resultion fail
                  - Fix for when name resultion fails "No such host is known". Sample workspaces conected to former SQL DW does not resolve SERVERNAME.sql.azuresynapse.net
 
+#KNOW ISSUES / TO DO
+    - Need to improve / test on linux machines
+	- 1443 port NOT needed anymore. Portal looks  using only 443 now - documented in march
+	- Add wait to check browser proxy and SHIR proxy settings
+	- Improve message cx and public dns ips are not same
+
 #> 
 
 using namespace System.Net
