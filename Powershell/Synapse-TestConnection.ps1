@@ -45,7 +45,7 @@
 using namespace System.Net
 
 param (
-    [string]$WorkspaceName = "fonsecanetsynapse"
+    [string]$WorkspaceName = "XPTO"
 )
 
 Clear-Host
