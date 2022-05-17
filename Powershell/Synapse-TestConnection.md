@@ -6,15 +6,20 @@ Script to test Synapse connectivity endpoints and Ports needed
     - Check name resolution for all possible endpoints used by Synapse and compare it with public DNS
     - Check if ports needed are open (1433 / 443)
     - Check Internet and ADF Self Hosted IR proxy that change name resolution from local machine to proxy
-    
-    You can also find last version (Dev version) at
-        https://github.com/FonsecaSergio/ScriptCollection/blob/master/Powershell/Synapse-TestConnection.ps1
 
-    This script does not really try to connect to endpoint, just check the ports are open. For full test you can use
+    Last Updated: 2022-05-17
+
+    This script does not really try to connect to endpoint, just check the ports. For full test you can use
         https://docs.microsoft.com/en-us/azure/synapse-analytics/troubleshoot/troubleshoot-synapse-studio-powershell
 
-    For only SQL connectivity test use
+    For SQL connectivity test use
         https://github.com/Azure/SQL-Connectivity-Checker/
+
+    Script available at
+     - https://github.com/Azure-Samples/Synapse/blob/main/PowerShell/Synapse-TestConnection.ps1
+     - Last dev version from
+        https://github.com/FonsecaSergio/ScriptCollection/blob/master/Powershell/Synapse-TestConnection.ps1
+
 
 
 

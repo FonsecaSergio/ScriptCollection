@@ -3,29 +3,32 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2022-04-14
+    Last Updated: 2022-05-17
 
 .SYNOPSIS   
     TEST SYNAPSE ENDPOINTS AND PORTS NEEDED
+
+    - Check all Windows HOST File entries
+    - Check DNS configuration
+    - Check name resolution for all possible endpoints used by Synapse and compare it with public DNS
+    - Check if ports needed are open (1433 / 443)
+    - Check Internet and Self Hosted IR proxy that change name resolution from local machine to proxy
     
     This script does not really try to connect to endpoint, just check the ports. For full test you can use
         https://docs.microsoft.com/en-us/azure/synapse-analytics/troubleshoot/troubleshoot-synapse-studio-powershell
 
     For SQL connectivity test use
-        https://github.com/Azure/SQL-Connectivity-Checker/blob/master/AzureSQLConnectivityChecker.ps1
+        https://github.com/Azure/SQL-Connectivity-Checker/
 
-    Script also available at
+    Script available at
      - https://github.com/Azure-Samples/Synapse/blob/main/PowerShell/Synapse-TestConnection.ps1
+     - Last dev version from
+        https://github.com/FonsecaSergio/ScriptCollection/blob/master/Powershell/Synapse-TestConnection.ps1
+
 
 .PARAMETER WorkspaceName
 
 .DESCRIPTION
-    - Check all Windows HOST File entries
-    - Check DNS configuration
-    - Check name resolution for all possible endpoints used by Synapse and compare it with public DNS
-    - Check if ports needed are open (1433 / 443)
-    - Check Internet and SHIT proxy that change name resolution from local machine to proxy
-
 #UPDATES
     - 2021-11-04 - Name resolution now also looks to host files to check if HOST file entry match Public DNS entry
     - 2022-01-21 - Shows note when open dns / cx dns name resultion fail
