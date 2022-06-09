@@ -2,7 +2,7 @@
 Author: Sergio Fonseca
 Twitter @FonsecaSergio
 Email: sergio.fonseca@microsoft.com
-Last Update Date: 2022-03-09
+Last Update Date: 2022-06-09
 ************************************************/
 
 
@@ -139,7 +139,18 @@ JOIN sys.dm_pdw_dms_external_work e
 	ON r.request_id = e.request_id
 
 
+---------------------------------------------------------------
+-- User Roles
 
+SELECT  r.name AS [Resource Class]
+,       m.name AS membername
+FROM    sys.database_role_members rm
+JOIN    sys.database_principals AS r ON rm.role_principal_id = r.principal_id
+JOIN    sys.database_principals AS m ON rm.member_principal_id = m.principal_id
+WHERE   r.name IN ('mediumrc','largerc','xlargerc','staticrc10','staticrc20','staticrc30','staticrc40','staticrc50','staticrc60','staticrc70','staticrc80');
+---------------------------------------------------------------
+--for each row returned run
+sp_droprolemember '[Resource Class]', membername
 ---------------------------------------------------------------
 
 DBCC PDW_SHOWSPACEUSED('[dbo].[FactFinance]');

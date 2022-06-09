@@ -40,6 +40,7 @@
 
 #KNOW ISSUES / TO DO
     - Need to improve / test on linux machines
+    - Need to improve when name resolution fails. Test port should show NOT TESTED instead of Open/closed
 	
 	
 

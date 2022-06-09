@@ -3,7 +3,7 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2021-03-11
+    Last Updated: 2022-06-09
 
 .SYNOPSIS   
    GET SUBSCRIPTION REGIONS AND QUOTA
@@ -11,7 +11,7 @@
 .DESCRIPTION
        
 #> 
-
+Clear-Host
 
 
 $SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b"
@@ -71,15 +71,26 @@ foreach($location in $synapseLocations)
     # available slos
     # https://docs.microsoft.com/en-us/rest/api/sql/capabilities/listbylocation
     $capabilitiesUri = "https://management.azure.com/subscriptions/$SubscriptionId/providers/Microsoft.Sql/locations/$($location.Location)/capabilities?api-version=2015-05-01-preview"
-    $regionalCapabilities = ConvertFrom-Json (Invoke-WebRequest -Method Get -Uri $capabilitiesUri -Headers $headers).Content
+    
+    Write-Host "Checking $($capabilitiesUri)" -ForegroundColor DarkGray
+
+    try {
+            $regionalCapabilities = ConvertFrom-Json (Invoke-WebRequest -Method Get -Uri $capabilitiesUri -Headers $headers -ErrorAction Stop).Content    
+            
+            $quotaResults += [PSCustomObject]@{
+                Location = $location.Location;
+                DisplayName = $location.DisplayName;
+                Status = $regionalCapabilities.status;
+            }
+    }
+    catch {
+        Write-Host "Error calling $($capabilitiesUri)" -ForegroundColor Yellow
+    }
+    
     
     # ------------------------------------
  
-    $quotaResults += [PSCustomObject]@{
-        Location = $location.Location;
-        DisplayName = $location.DisplayName;
-        Status = $regionalCapabilities.status;
-    }
+
 }
  
 $quotaResults | ft -AutoSize
@@ -102,16 +113,23 @@ foreach($location in $synapseLocations)
     # subscription quota
     # https://docs.microsoft.com/en-us/rest/api/sql/subscriptionusages/get
     $subscriptionQuotaUri = "https://management.azure.com/subscriptions/$SubscriptionId/providers/Microsoft.Sql/locations/$($location.Location)/usages/ServerQuota?api-version=2015-05-01-preview"
-    $currentQuotaResult = (ConvertFrom-Json (Invoke-WebRequest -Method Get -Uri $subscriptionQuotaUri -Headers $headers).Content).properties
-    
-    # ------------------------------------
 
-    $quotaResults += [PSCustomObject]@{
-        Location = $location.Location;
-        DisplayName = $location.DisplayName;
-        CurrentServerWorkspaceCount = $currentQuotaResult.currentValue;
-        ServerWorkspaceQuotaLimit = $currentQuotaResult.limit;
+    Write-Host "Calling $($subscriptionQuotaUri)" -ForegroundColor DarkGray
+    try{
+        $currentQuotaResult = (ConvertFrom-Json (Invoke-WebRequest -Method Get -Uri $subscriptionQuotaUri -Headers $headers -ErrorAction Stop).Content).properties
+
+        $quotaResults += [PSCustomObject]@{
+            Location = $location.Location;
+            DisplayName = $location.DisplayName;
+            CurrentServerWorkspaceCount = $currentQuotaResult.currentValue;
+            ServerWorkspaceQuotaLimit = $currentQuotaResult.limit;
+        }
     }
+    catch {
+        Write-Host "Error calling $($subscriptionQuotaUri)" -ForegroundColor Yellow
+    }
+
+    # ------------------------------------
 }
 
 $quotaResults | ft -AutoSize
@@ -138,15 +156,23 @@ foreach($server in $serverList)
     # https://docs.microsoft.com/en-us/rest/api/sql/servers/usages
     # GET https://management.azure.com/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Sql/servers/{serverName}/usages?api-version=2014-01-01
     $serverQuotaUri = "https://management.azure.com$($server.id)/usages?api-version=2014-01-01"
-    $serverQuota = (ConvertFrom-Json (Invoke-WebRequest -Method Get -Uri $serverQuotaUri -Headers $headers).Content).value
 
-    $serverQuotas += [PSCustomObject]@{
-        Location = $server.location;
-        Id = $server.id;
-        Name = $server.name;
-        CurrentDTU = ($serverQuota | ? { $_.name -eq 'server_dtu_quota_current' }).currentValue;
-        DTULimit = ($serverQuota | ? { $_.name -eq 'server_dtu_quota_current' }).limit;
+    Write-Host "Calling $($serverQuotaUri)" -ForegroundColor DarkGray
+    try {
+        $serverQuota = (ConvertFrom-Json (Invoke-WebRequest -Method Get -Uri $serverQuotaUri -Headers $headers -ErrorAction Stop).Content).value
+
+        $serverQuotas += [PSCustomObject]@{
+            Location = $server.location;
+            Id = $server.id;
+            Name = $server.name;
+            CurrentDTU = ($serverQuota | ? { $_.name -eq 'server_dtu_quota_current' }).currentValue;
+            DTULimit = ($serverQuota | ? { $_.name -eq 'server_dtu_quota_current' }).limit;
+        }        
     }
+    catch {
+        Write-Host "Error calling $($subscriptionQuotaUri)" -ForegroundColor Yellow
+    }
+
 }
 
 $serverQuotas | Sort-Object Location, Name | ft Location, Name, CurrentDTU, DTULimit -AutoSize
