@@ -5,7 +5,7 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2022-06-25
+    Last Updated: 2022-06-30
 
 .SYNOPSIS   
     TEST SYNAPSE ENDPOINTS AND PORTS NEEDED
@@ -41,10 +41,11 @@
     - 2022-06-25 - 1443 port added back to document (we use this port in certain regions) - https://docs.microsoft.com/en-us/azure/synapse-analytics/security/synapse-workspace-ip-firewall#connect-to-azure-synapse-from-your-own-network
                  - ADDED AAD login endpoints (login.windows.net / login.microsoftonline.com / secure.aadcdn.microsoftonline-p.com). took from https://github.com/Azure/SQL-Connectivity-Checker/blob/master/AzureSQLConnectivityChecker.ps1
                  - Change code to Classes
+    - 2022-06-30 - Fixed error "The output stream for this command is already redirected"
+					Error caused by write output + char > causing redirect of output
 
 #KNOW ISSUES / TO DO
     - Need to improve / test on linux / Mac machines
-    - Understand and fix error - "The output stream for this command is already redirected" 
 #> 
 
 if($PSVersionTable.Platform)
@@ -187,8 +188,8 @@ Class EndpointTest
     [void] PrintTest_Endpoint ($HostsFileEntries, [string]$DNSPublic) 
     {
         Write-Host "   ----------------------------------------------------------------------------"
-        Write-Host "   > DNS for ($($this.EndpointCX.Name))"
-        Write-Host "      > CX DNS:($($this.EndpointCX.IP)) / NAME:($($this.EndpointCX.CNAME))"
+        Write-Host "   - DNS for ($($this.EndpointCX.Name))"
+        Write-Host "      - CX DNS:($($this.EndpointCX.IP)) / NAME:($($this.EndpointCX.CNAME))"
 
         $HostsFileEntry = $null
         $_HaveHostsFileEntry = $false
@@ -200,54 +201,54 @@ Class EndpointTest
             {
                 if ($HostsFileEntry.HOST -eq $this.EndpointCX.Name) {
                     $_HaveHostsFileEntry = $true
-                    Write-Host "      > CX HOST FILE:($($HostsFileEntry.IP)) / NAME:($($HostsFileEntry.HOST))" -ForegroundColor Red
+                    Write-Host "      - CX HOST FILE:($($HostsFileEntry.IP)) / NAME:($($HostsFileEntry.HOST))" -ForegroundColor Red
                     break
                 }    
             }     
         }
 
-        Write-Host "      > Public DNS:($($this.EndPointPublic.IP)) / NAME:($($this.EndPointPublic.CNAME))"              
+        Write-Host "      - Public DNS:($($this.EndPointPublic.IP)) / NAME:($($this.EndPointPublic.CNAME))"              
 
         if ($this.EndPointPublic.IP -eq $null) 
-        { Write-Host "      > PUBLIC NAME RESOLUTION DIDN'T WORK - DOES NOT MEAN A PROBLEM - Just could not reach Public DNS ($($DNSPublic)) to compare" -ForegroundColor Yellow }
+        { Write-Host "      - PUBLIC NAME RESOLUTION DIDN'T WORK - DOES NOT MEAN A PROBLEM - Just could not reach Public DNS ($($DNSPublic)) to compare" -ForegroundColor Yellow }
 
         if ($_HaveHostsFileEntry)
         {# HAVE HOST FILE ENTRY           
             if ($HostsFileEntry.IP -eq $this.EndPointPublic.IP) 
-            { Write-Host "      > VM HOST FILE ENTRY AND PUBLIC DNS ARE SAME" -ForegroundColor Green }
-            else { Write-Host "      > VM HOST FILE ENTRY AND PUBLIC DNS ARE NOT SAME" -ForegroundColor Yellow }
+            { Write-Host "      - VM HOST FILE ENTRY AND PUBLIC DNS ARE SAME" -ForegroundColor Green }
+            else { Write-Host "      - VM HOST FILE ENTRY AND PUBLIC DNS ARE NOT SAME" -ForegroundColor Yellow }
 
-            Write-Host "      > CHECK HOSTS FILE ENTRY TO CHECK IF USING PRIVATE LINK or PUBLIC ENDPOINT" -ForegroundColor Yellow
+            Write-Host "      - CHECK HOSTS FILE ENTRY TO CHECK IF USING PRIVATE LINK or PUBLIC ENDPOINT" -ForegroundColor Yellow
         }
         else
         {# DOES NOT HAVE HOST FILE ENTRY
             if ($this.EndpointCX.IP -eq $null) 
-            { Write-Host "      > CX NAME RESOLUTION DIDN'T WORK" -ForegroundColor Red }
+            { Write-Host "      - CX NAME RESOLUTION DIDN'T WORK" -ForegroundColor Red }
             else {
                 if ($this.EndpointCX.IP -eq $this.EndPointPublic.IP) 
-                { Write-Host "      > INFO: CX DNS SERVER AND PUBLIC DNS ARE SAME. That is not an issue. Just a notice that they are currently EQUAL" -ForegroundColor Green }
-                else { Write-Host "      > INFO: CX DNS SERVER AND PUBLIC DNS ARE NOT SAME. That is not an issue. Just a notice that they are currently DIFFERENT" -ForegroundColor Yellow }
+                { Write-Host "      - INFO: CX DNS SERVER AND PUBLIC DNS ARE SAME. That is not an issue. Just a notice that they are currently EQUAL" -ForegroundColor Green }
+                else { Write-Host "      - INFO: CX DNS SERVER AND PUBLIC DNS ARE NOT SAME. That is not an issue. Just a notice that they are currently DIFFERENT" -ForegroundColor Yellow }
     
                 if ($this.EndpointCX.Name -like "*.cloudapp.*" -or $this.EndpointCX.Name -like "*.control.*") 
-                { Write-Host "      > CX USING PUBLIC ENDPOINT" -ForegroundColor Cyan }
+                { Write-Host "      - CX USING PUBLIC ENDPOINT" -ForegroundColor Cyan }
                 elseif ($this.EndpointCX.Name -like "*.privatelink.*") 
-                { Write-Host "      > CX USING PRIVATE ENDPOINT" -ForegroundColor Yellow }                   
+                { Write-Host "      - CX USING PRIVATE ENDPOINT" -ForegroundColor Yellow }                   
             } 
         }
     }
 
     [void] PrintTest_Ports ()
     {
-        Write-host "    > TESTS FOR ENDPOINT - $($this.EndpointCX.Name) - IP ($($this.EndpointCX.IP))"
+        Write-host "    - TESTS FOR ENDPOINT - $($this.EndpointCX.Name) - IP ($($this.EndpointCX.IP))"
 
         foreach ($Port in $this.EndpointCX.PortsNeeded)
         {
             if($Port.Result -eq "CONNECTED")
-            { Write-host "      > PORT $($Port.Port.PadRight(4," ")) - RESULT: $($Port.Result)"  -ForegroundColor Green}
+            { Write-host "      - PORT $($Port.Port.PadRight(4," ")) - RESULT: $($Port.Result)"  -ForegroundColor Green}
             elseif($Port.Result -eq "CLOSED" -or $Port.Result -contains "NOT VALID IP")
-            { Write-host "      > PORT $($Port.Port.PadRight(4," ")) - RESULT: $($Port.Result)"  -ForegroundColor Red}
+            { Write-host "      - PORT $($Port.Port.PadRight(4," ")) - RESULT: $($Port.Result)"  -ForegroundColor Red}
             else
-            { Write-host "      > PORT $($Port.Port.PadRight(4," ")) - RESULT: $($Port.Result)"  -ForegroundColor Yellow}
+            { Write-host "      - PORT $($Port.Port.PadRight(4," ")) - RESULT: $($Port.Result)"  -ForegroundColor Yellow}
         }       
     }
 }
@@ -456,15 +457,15 @@ if ($HostsFileEntries.Count -gt 0) {
             $HostsFileEntry.HOST.Contains($AADEndpoint2.Name) -or `
             $HostsFileEntry.HOST.Contains($AADEndpoint3.Name)`
         ) {
-            Write-Host "   > IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]" -ForegroundColor Red    
+            Write-Host "   - IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]" -ForegroundColor Red    
         }
         else {
-            Write-Host "   > IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]"
+            Write-Host "   - IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]"
         }    
     }     
 }
 else {
-    Write-Host "   > NO RELATED ENTRY" -ForegroundColor Green
+    Write-Host "   - NO RELATED ENTRY" -ForegroundColor Green
 }
 
 #endregion RESULTS - HostsFile
@@ -478,10 +479,10 @@ foreach ($DnsCxServerAddress in $DnsCxServerAddresses)
 {
     #https://docs.microsoft.com/en-us/azure/virtual-network/what-is-ip-address-168-63-129-16
     if ($DnsCxServerAddress -eq "168.63.129.16") {
-        Write-Host "   > DNS [$($DnsCxServerAddress)] AZURE DNS" -ForegroundColor Cyan
+        Write-Host "   - DNS [$($DnsCxServerAddress)] AZURE DNS" -ForegroundColor Cyan
     }
     else {
-        Write-Host "   > DNS [$($DnsCxServerAddress)] CUSTOM" -ForegroundColor Cyan
+        Write-Host "   - DNS [$($DnsCxServerAddress)] CUSTOM" -ForegroundColor Cyan
     } 
        
 }
@@ -495,11 +496,11 @@ Write-Host "  Computer Internet Settings - LOOK FOR PROXY SETTINGS"
 $IESettings = Get-ItemProperty -Path "Registry::HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
 
 if ($IESettings.ProxyEnable -eq 0) {
-    Write-Host "   > NO INTERNET PROXY ON SERVER / BROWSER"
+    Write-Host "   - NO INTERNET PROXY ON SERVER / BROWSER"
 }
 else {
-    Write-Host "   > PROXY ENABLED ON SERVER $($IESettings.ProxyServer)" -ForegroundColor Red
-    Write-Host "   > PROXY EXCEPTIONS $($IESettings.ProxyOverride)" -ForegroundColor Red
+    Write-Host "   - PROXY ENABLED ON SERVER $($IESettings.ProxyServer)" -ForegroundColor Red
+    Write-Host "   - PROXY EXCEPTIONS $($IESettings.ProxyOverride)" -ForegroundColor Red
 }
 
 #####################################################################################
@@ -516,8 +517,8 @@ try {
     $ProxyEvents | Select TimeGenerated, Message
 }
 catch{
-    Write-Host "   > FAILED - NOT A PROBLEM IF NOT Self Hosted IR Machine" 
-    Write-Host "     > $_.Exception"
+    Write-Host "   - FAILED - NOT A PROBLEM IF NOT Self Hosted IR Machine" 
+    Write-Host "     - $_.Exception"
 }
 
 Write-Host "  ----------------------------------------------------------------------------"
