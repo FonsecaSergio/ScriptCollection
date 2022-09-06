@@ -1,4 +1,4 @@
-﻿[string]$objectIdOrAppId = "1d0e6f2f-7be2-4113-bd76-42343fb59f66"
+﻿[string]$objectIdOrAppId = "70f02567-10f4-4def-8a46-07c9d1b267c2"
 
 [guid]$guid = [System.Guid]::Parse($objectIdOrAppId)
 
@@ -10,3 +10,21 @@ foreach ($byte in $guid.ToByteArray())
 }
 
 return "0x" + $byteGuid
+
+
+<#
+
+SID to OBJECTID
+
+SELECT
+	DP.name
+	,DP.principal_id
+	,DP.type
+	,DP.type_desc
+	,DP.SID
+	,OBJECTID = CONVERT(uniqueidentifier, DP.SID)
+FROM SYS.database_principals DP
+WHERE DP.type IN ('S','X','E')
+
+
+#>
