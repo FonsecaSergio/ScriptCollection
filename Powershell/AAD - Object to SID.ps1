@@ -1,4 +1,4 @@
-﻿[string]$objectIdOrAppId = "33d3d39b-5cf5-4cb5-8bcd-408950de5361"
+[string]$objectIdOrAppId = "70f02567-10f4-4def-8a46-07c9d1b267c2"
 
 [guid]$guid = [System.Guid]::Parse($objectIdOrAppId)
 
@@ -10,7 +10,6 @@ foreach ($byte in $guid.ToByteArray())
 }
 
 return "0x" + $byteGuid
-
 
 <#
 
