@@ -3,18 +3,20 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2022-01-20
+    Last Updated: 2022-09-22
 
 .SYNOPSIS   
-   UPDATE AUTORESOLVEINTEGRATIONRUNTIME
+   UPDATE SYNAPSE ADF INTEGRATION RUNTIME
 
 .DESCRIPTION
-       
+   *NOTE THIS WILL ONLY CHANGE LIVE MODE. IT WILL NOT REFLECT ON GIT VERSION
+          
 #> 
 
 $ResourceGroup = "SynapseWorkspace"
 $workspaceName = "fonsecanetsynapse"
 $SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b"
+$Runtimename = 'AutoResolveIntegrationRuntime'
 
 # ------------------------------------------
 # these Az modules required
@@ -58,9 +60,25 @@ $headers = @{ Authorization = "Bearer $token" }
 
 $uri = "https://management.azure.com/subscriptions/$SubscriptionID/"
 $uri += "resourceGroups/$ResourceGroup/providers/Microsoft.Synapse/"
-$uri += "workspaces/$workspaceName/integrationruntimes/AutoResolveIntegrationRuntime?api-version=2019-06-01-preview"
+$uri += "workspaces/$workspaceName/integrationruntimes/$Runtimename?api-version=2019-06-01-preview"
 
-$body = "{""name"":""AutoResolveIntegrationRuntime"",""properties"":{""type"":""Managed"",""typeProperties"":{""computeProperties"":{""location"":""AutoResolve"",""dataFlowProperties"":{""computeType"":""General"",""coreCount"":8,""timeToLive"":0,""cleanup"":false}}}}}"
+$body = "{
+    ""name"": ""$Runtimename"",
+    ""properties"": {
+        ""type"": ""Managed"",
+        ""typeProperties"": {
+            ""computeProperties"": {
+                ""location"": ""AutoResolve"",
+                ""dataFlowProperties"": {
+                    ""computeType"": ""General"",
+                    ""coreCount"": 8,
+                    ""timeToLive"": 0,
+                    ""cleanup"": false
+                }
+            }
+        }
+    }
+}"
 
 $result = Invoke-RestMethod -Method PUT -ContentType "application/json" -Uri $uri -Headers $headers -Body $body
 
