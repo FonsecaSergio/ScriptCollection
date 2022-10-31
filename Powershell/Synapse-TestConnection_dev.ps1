@@ -153,6 +153,8 @@ Class EndpointTest
                 {
                     Write-Host " -Testing Port $($this.EndpointCX.Name) / IP($($this.EndpointCX.IP)):PORT($($Port.Port))" -ForegroundColor DarkGray
 
+                    $portOpened = $false
+
                     $portOpened = $tcpClient.ConnectAsync($this.EndpointCX.IP, $Port.Port).Wait($Timeout)
 
                     if($portOpened -eq $true) {

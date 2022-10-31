@@ -3,16 +3,30 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2022-06-30
+    Last Updated: 2022-10-31
 
 .SYNOPSIS   
     TEST SYNAPSE ENDPOINTS AND PORTS NEEDED
 
+        ## Sample execution
+
+        ```
+        .\"Synapse-TestConnection.ps1" WORKSPACENAME
+        ```
+
+        OR just copy and paste code to Powershell ISE and change parameter before run
+
+        ```
+        [string]$WorkspaceName = "xpto"
+        ```
+
+    ----------------------------------------------------------------------------------------------
     - Check all Windows HOST File entries
     - Check DNS configuration
     - Check name resolution for all possible endpoints used by Synapse and compare it with public DNS
-    - Check if ports needed are open (1433 / 443)
+    - Check if ports needed are open (1433 / 443 / 1443)
     - Check Internet and Self Hosted IR proxy that change name resolution from local machine to proxy
+    ----------------------------------------------------------------------------------------------
     
     This script does not really try to connect to endpoint, just check the ports. For full test you can use
         https://docs.microsoft.com/en-us/azure/synapse-analytics/troubleshoot/troubleshoot-synapse-studio-powershell
@@ -38,11 +52,15 @@
                  - Add method to get browser proxy and SHIR proxy settings
     - 2022-06-30 - Fixed error "The output stream for this command is already redirected"
 				   Error caused by write output + char > causing redirect of output
-
+    - 2022-10-31 - 1433 added again. Still needed in some regions for Synapse Studio
+                   - https://docs.microsoft.com/en-us/azure/synapse-analytics/security/synapse-workspace-ip-firewall#connect-to-azure-synapse-from-your-own-network
+                   - https://github.com/MicrosoftDocs/azure-docs/issues/69090
+                 - Added Import-Module DnsClient just in case is not there by default - BUGFIX
+                 - When name resolution fails. Test port shows CLOSED
+                 - Check if machine is windows before executing. Not tested on Linux or Mac
 
 #KNOW ISSUES / TO DO
-    - Need to improve / test on linux machines
-    - Need to improve when name resolution fails. Test port should show NOT TESTED instead of Open/closed
+
 
 #> 
 
@@ -53,6 +71,20 @@ param (
 )
 
 Clear-Host
+
+Import-Module DnsClient
+
+####################################################
+#CHECK IF MACHINE IS WINDOWS
+[String]$OS = [System.Environment]::OSVersion.Platform
+Write-Host "SO: $($OS)"
+
+if (-not(($OS.Contains("Win"))))
+{
+    Write-Error "Only can be used on Windows Machines"
+    Break
+}
+    
 
 ####################################################
 #OTHER PARAMETERS
@@ -160,6 +192,7 @@ function Test-Port {
             }
 
             $tcpClient = New-Object System.Net.Sockets.TcpClient
+            $portOpened = $false
             try {
                 $portOpened = $tcpClient.ConnectAsync($remoteHostname, $remotePort).Wait($Timeout)    
             }
@@ -222,27 +255,7 @@ function Get-DnsCxServerAddresses {
 
     return $DNSServers
 }
-#----------------------------------------------------------------------------------------------------------------------
 
-# RESERVED FOR FUTURE USE
-<#
-#http://www.padisetty.com/2014/05/powershell-bit-manipulation-and-network.html
-#checkSubnet "20.36.105.32/29" "20.36.104.6" #FALSE
-#checkSubnet "20.36.105.0/24" "20.36.105.10" #TRUE
-
-function checkSubnet ([string]$cidr, [string]$ip) {
-    $network, [int]$subnetlen = $cidr.Split('/')
-    $a = [uint32[]]$network.split('.')
-    [uint32] $unetwork = ($a[0] -shl 24) + ($a[1] -shl 16) + ($a[2] -shl 8) + $a[3]
-
-    $mask = (-bnot [uint32]0) -shl (32 - $subnetlen)
-
-    $a = [uint32[]]$ip.split('.')
-    [uint32] $uip = ($a[0] -shl 24) + ($a[1] -shl 16) + ($a[2] -shl 8) + $a[3]
-
-    $unetwork -eq ($mask -band $uip)
-}
-#>
 #----------------------------------------------------------------------------------------------------------------------
 
 
@@ -299,6 +312,8 @@ Write-Host "  TEST PORTS NEEDED"
 $Results1433 = $SynapseSQLEndpoint.NAME, $SynapseServelessEndpoint.NAME, $SQLDatabaseEndpoint.NAME | Test-Port -Port 1433 -Timeout $TestPortConnectionTimeoutMs
 #443
 $Results443 = $SynapseSQLEndpoint.NAME, $SynapseServelessEndpoint.NAME, $SynapseDevEndpoint.NAME, $SynapseStudioEndpoint.NAME, $AzureManagementEndpoint.NAME | Test-Port -Port 443 -Timeout $TestPortConnectionTimeoutMs
+#1443
+$Results1443 = $SynapseSQLEndpoint.NAME, $SynapseServelessEndpoint.NAME, $SQLDatabaseEndpoint.NAME | Test-Port -Port 1443 -Timeout $TestPortConnectionTimeoutMs
 
 Write-Host "  ----------------------------------------------------------------------------"
 
@@ -429,7 +444,7 @@ function Test-Endpoint {
             { Write-Host "      - VM HOST FILE ENTRY AND PUBLIC DNS ARE SAME" -ForegroundColor Green }
             else { Write-Host "      - VM HOST FILE ENTRY AND PUBLIC DNS ARE NOT SAME" -ForegroundColor Yellow }
 
-            Write-Host "      - CHECK HOSTS FILE ENTRY TO CHECK IF USING PRIVATE LINK or PUBLIC ENDPOINT" -ForegroundColor Yellow
+            Write-Host "      - AS USING HOSTS FILE ENTRY - CHECK IF USING PRIVATE LINK or PUBLIC ENDPOINT, COMPARE WITH PUBLIC GATEWAY IP" -ForegroundColor Yellow
         }
         else
         {# DOES NOT HAVE HOST FILE ENTRY
@@ -486,7 +501,8 @@ Write-Host "   - 1433 ----------------------------------------------------------
 Test-Ports $Results1433
 Write-Host "   - 443 ---------------------------------------------------------------------"
 Test-Ports $Results443
-
+Write-Host "   - 1443 ---------------------------------------------------------------------"
+Test-Ports $Results1443
 
 #Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
 #Write-Host "END OF SCRIPT" -ForegroundColor Yellow
