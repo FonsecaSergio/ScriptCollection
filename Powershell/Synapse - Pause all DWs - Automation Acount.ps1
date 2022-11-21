@@ -3,13 +3,23 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2022-01-21
+    Last Updated: 2022-11-16
+
+    DEPRECATED
+
+    * Update 2022-11-16 - Updating scripts / procedures to use MSI, instead of Automation Run As Account
+    https://learn.microsoft.com/en-us/azure/automation/manage-run-as-account
+    Azure Automation Run As Account will retire on September 30, 2023 and will be replaced with Managed Identities. Before that date, you'll need to start migrating your runbooks to use managed identities. For more information, see migrating from an existing Run As accounts to managed identity to start migrating the runbooks from Run As account to managed identities before 30 September 2023.
+
+    USE https://github.com/FonsecaSergio/ScriptCollection/blob/master/Powershell/Synapse%20-%20Pause%20all%20DWs%20-%20Automation%20Acount%20-%20MSI.ps1
 
 .SYNOPSIS   
    
 .DESCRIPTION    
     https://docs.microsoft.com/en-us/azure/automation/automation-alert-metric
  
+
+    
 .PARAMETER SubscriptionId  
        
 #> 
