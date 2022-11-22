@@ -39,9 +39,6 @@ $AzureContext = (Connect-AzAccount -Identity).context
 # set and store context
 $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -DefaultProfile $AzureContext
 
-# getting credential to access to the Dedcated Sql Pool
-$SQLServerCred = Get-AutomationPSCredential -Name "DedicatedSqlPool"
-
 
 ##########################################################################################################################################################
 #Get SQL / Synapse RESOURCES
