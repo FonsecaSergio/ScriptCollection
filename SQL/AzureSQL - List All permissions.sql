@@ -2,13 +2,12 @@
 Author: Sergio Fonseca
 Twitter @FonsecaSergio
 Email: sergio.fonseca@microsoft.com
-Last Update Date: 2020-04-06
+Last Update Date: 2022-12-23
 ************************************************/
 
 /*
-This script list all DB permissions
-
-RUN ON USER DATABASE
+This script list all DB permissions - RUN ON USER DATABASE
+ - Works on Azure SQL DB and also Synapse
 */
 
 SET NOCOUNT ON
@@ -19,9 +18,12 @@ SELECT * FROM sys.databases
 ----------------------------------------------------------------------------------------------------------------
 SELECT  'DB USERS'
 
-SELECT principal_id, name, type, type_desc, sid, authentication_type, authentication_type_desc
+SELECT 
+    principal_id, name, type, type_desc, sid, authentication_type, authentication_type_desc,
+    OBJECTIDorAPPID = CONVERT(uniqueidentifier, SID) --Used to make sure object id (AAD user / group) or application id (Serv Principal / Managed Identity) match with Azure AD info. Sample users that were recreated
 FROM sys.database_principals
-WHERE [principal_id] > 4 -- 0 to 4 are system users/schemas
+WHERE [principal_id] > 4
+    --0 to 4 are system users/schemas
 
 ----------------------------------------------------------------------------------------------------------------
 SELECT 'DB ROLE MEMBERSHIP'
@@ -29,12 +31,14 @@ SELECT
          [Role] = USER_NAME(rm.role_principal_id)
         ,[Membername] = USER_NAME(rm.member_principal_id)
 FROM sys.database_role_members AS rm
-WHERE USER_NAME(rm.member_principal_id) IN ( 
+WHERE USER_NAME(rm.member_principal_id) IN 
+( 
         --get user names on the database
         SELECT [name]
         FROM sys.database_principals
         WHERE [principal_id] > 4 -- 0 to 4 are system users/schemas
 )
+
 ----------------------------------------------------------------------------------------------------------------
 SELECT 'DB LEVEL PERMISSIONS'
 SELECT 
