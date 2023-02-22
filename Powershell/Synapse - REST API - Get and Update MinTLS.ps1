@@ -3,7 +3,7 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2022-02-22
+    Last Updated: 2023-02-22
 
 .SYNOPSIS   
    GET SYNAPSE MIN TLS and CHANGE IT
