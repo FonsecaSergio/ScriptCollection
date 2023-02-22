@@ -1,0 +1,62 @@
+from pyspark.sql.types import StructType,StructField, StringType, IntegerType
+mySchema = StructType([
+    StructField("DateID", StringType(), True),
+    StructField("Date", StringType(), True),
+    StructField("DateBKey", StringType(), True),
+    StructField("DayOfMonth", StringType(), True),
+    StructField("DaySuffix", StringType(), True),
+    StructField("DayName", StringType(), True),
+    StructField("DayOfWeek", StringType(), True),
+    StructField("DayOfWeekInMonth", StringType(), True),
+    StructField("DayOfWeekInYear", StringType(), True),
+    StructField("DayOfQuarter", StringType(), True),
+    StructField("DayOfYear", StringType(), True),
+    StructField("WeekOfMonth", StringType(), True),
+    StructField("WeekOfQuarter", StringType(), True),
+    StructField("WeekOfYear", StringType(), True),
+    StructField("Month", StringType(), True),
+    StructField("MonthName", StringType(), True),
+    StructField("MonthOfQuarter", StringType(), True),
+    StructField("Quarter", StringType(), True),
+    StructField("QuarterName", StringType(), True),
+    StructField("Year", StringType(), True),
+    StructField("YearName", StringType(), True),
+    StructField("MonthYear", StringType(), True),
+    StructField("MMYYYY", StringType(), True),
+    StructField("FirstDayOfMonth", StringType(), True),
+    StructField("LastDayOfMonth", StringType(), True),
+    StructField("FirstDayOfQuarter", StringType(), True),
+    StructField("LastDayOfQuarter", StringType(), True),
+    StructField("FirstDayOfYear", StringType(), True),
+    StructField("LastDayOfYear", StringType(), True),
+    StructField("IsHolidayUSA", StringType(), True),
+    StructField("IsWeekday", StringType(), True),
+    StructField("HolidayUSA", StringType(), True)
+    ])
+df = spark.read.load("wasbs://2013@nytaxiblob.blob.core.windows.net/Date", format="csv", schema = mySchema)
+df.write.format('delta').mode('overwrite').saveAsTable('delta_Date')
+df.write.format('csv').mode('overwrite').saveAsTable('csv_Date')
+df.write.format('parquet').mode('overwrite').saveAsTable('parquet_Date')
+mySchema = StructType([
+    StructField("DateID", StringType(), True),
+    StructField("GeographyID", StringType(), True),
+    StructField("PrecipitationInches", StringType(), True),
+    StructField("AvgTemperatureFahrenheit", StringType(), True)
+    ])
+df = spark.read.load("wasbs://2013@nytaxiblob.blob.core.windows.net/Weather", format="csv", schema = mySchema)
+df.write.format('delta').mode('overwrite').saveAsTable('delta_Weather')
+df.write.format('csv').mode('overwrite').saveAsTable('csv_Weather')
+df.write.format('parquet').mode('overwrite').saveAsTable('parquet_Weather')
+mySchema = StructType([
+    StructField("GeographyID", StringType(), True),
+    StructField("ZipCodeBKey", StringType(), True),
+    StructField("County", StringType(), True),
+    StructField("City", StringType(), True),
+    StructField("State", StringType(), True),
+    StructField("Country", StringType(), True),
+    StructField("ZipCode", StringType(), True)
+    ])
+df = spark.read.load("wasbs://2013@nytaxiblob.blob.core.windows.net/Geography", format="csv", schema = mySchema)
+df.write.format('delta').mode('overwrite').saveAsTable('delta_Geography')
+df.write.format('csv').mode('overwrite').saveAsTable('csv_Geography')
+df.write.format('parquet').mode('overwrite').saveAsTable('parquet_Geography')
