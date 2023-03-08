@@ -3,7 +3,7 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2022-10-31
+    Last Updated: 2023-03-08
 
 .SYNOPSIS   
     TEST SYNAPSE ENDPOINTS AND PORTS NEEDED
@@ -58,21 +58,24 @@
                  - Added Import-Module DnsClient just in case is not there by default - BUGFIX
                  - When name resolution fails. Test port shows CLOSED
                  - Check if machine is windows before executing. Not tested on Linux or Mac
-
+    - 2023-03-08 - Test AAD Login endpoints ("login.windows.net" / "login.microsoftonline.com" / "secure.aadcdn.microsoftonline-p.com")
 #KNOW ISSUES / TO DO
-
 
 #> 
 
 using namespace System.Net
 
 param (
-    [string]$WorkspaceName = "XPTO"
+    [string]$WorkspaceName = "CHANGESERVERNAME"
 )
+
+$VERSION = "2023-03-08"
 
 Clear-Host
 
 Import-Module DnsClient
+
+Write-Host ("Current version: " + $VERSION)
 
 ####################################################
 #CHECK IF MACHINE IS WINDOWS
@@ -123,6 +126,22 @@ ENDPOINT_CX = $null
 ENDPOINT_PUBLICDNS = $null
 };
 
+$AzureADLoginEndpoint1 = @{ NAME = "login.windows.net"
+ENDPOINT_CX = $null
+ENDPOINT_PUBLICDNS = $null
+};
+
+$AzureADLoginEndpoint2 = @{ NAME = "login.microsoftonline.com"
+ENDPOINT_CX = $null
+ENDPOINT_PUBLICDNS = $null
+};
+
+$AzureADLoginEndpoint3 = @{ NAME = "secure.aadcdn.microsoftonline-p.com"
+ENDPOINT_CX = $null
+ENDPOINT_PUBLICDNS = $null
+};
+
+
 ####################################################
 
 function Resolve-DnsName_Internal {
@@ -150,7 +169,6 @@ function Resolve-DnsName_Internal {
         }
     }
 }
-
 
 #----------------------------------------------------------------------------------------------------------------------
 #https://copdips.com/2019/09/fast-tcp-port-check-in-powershell.html
@@ -293,6 +311,9 @@ $SynapseDevEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SynapseDevEndpoint.N
 $SQLDatabaseEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SQLDatabaseEndpoint.NAME
 $SynapseStudioEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $SynapseStudioEndpoint.NAME
 $AzureManagementEndpoint.ENDPOINT_CX = Resolve-DnsName_Internal $AzureManagementEndpoint.NAME
+$AzureADLoginEndpoint1.ENDPOINT_CX = Resolve-DnsName_Internal $AzureADLoginEndpoint1.NAME
+$AzureADLoginEndpoint2.ENDPOINT_CX = Resolve-DnsName_Internal $AzureADLoginEndpoint2.NAME
+$AzureADLoginEndpoint3.ENDPOINT_CX = Resolve-DnsName_Internal $AzureADLoginEndpoint3.NAME
 
 Write-Host "  ----------------------------------------------------------------------------"
 Write-Host "  TEST NAME RESOLUTION - PUBLIC DNS TEST - NOT A PROBLEM IF FAIL"
@@ -302,7 +323,9 @@ $SynapseDevEndpoint.ENDPOINT_PUBLICDNS = Resolve-DnsName_Internal $SynapseDevEnd
 $SQLDatabaseEndpoint.ENDPOINT_PUBLICDNS = Resolve-DnsName_Internal $SQLDatabaseEndpoint.NAME -Server $DNSPublic
 $SynapseStudioEndpoint.ENDPOINT_PUBLICDNS = Resolve-DnsName_Internal $SynapseStudioEndpoint.NAME -Server $DNSPublic
 $AzureManagementEndpoint.ENDPOINT_PUBLICDNS = Resolve-DnsName_Internal $AzureManagementEndpoint.NAME -Server $DNSPublic
-
+$AzureADLoginEndpoint1.ENDPOINT_PUBLICDNS = Resolve-DnsName_Internal $AzureADLoginEndpoint1.NAME -Server $DNSPublic
+$AzureADLoginEndpoint2.ENDPOINT_PUBLICDNS = Resolve-DnsName_Internal $AzureADLoginEndpoint2.NAME -Server $DNSPublic
+$AzureADLoginEndpoint3.ENDPOINT_PUBLICDNS = Resolve-DnsName_Internal $AzureADLoginEndpoint3.NAME -Server $DNSPublic
 
 ####################################################
 # Test Ports
@@ -311,7 +334,7 @@ Write-Host "  TEST PORTS NEEDED"
 #1433
 $Results1433 = $SynapseSQLEndpoint.NAME, $SynapseServelessEndpoint.NAME, $SQLDatabaseEndpoint.NAME | Test-Port -Port 1433 -Timeout $TestPortConnectionTimeoutMs
 #443
-$Results443 = $SynapseSQLEndpoint.NAME, $SynapseServelessEndpoint.NAME, $SynapseDevEndpoint.NAME, $SynapseStudioEndpoint.NAME, $AzureManagementEndpoint.NAME | Test-Port -Port 443 -Timeout $TestPortConnectionTimeoutMs
+$Results443 = $SynapseSQLEndpoint.NAME, $SynapseServelessEndpoint.NAME, $SynapseDevEndpoint.NAME, $SynapseStudioEndpoint.NAME, $AzureManagementEndpoint.NAME, $AzureADLoginEndpoint1.NAME, $AzureADLoginEndpoint2.NAME, $AzureADLoginEndpoint3.NAME | Test-Port -Port 443 -Timeout $TestPortConnectionTimeoutMs
 #1443
 $Results1443 = $SynapseSQLEndpoint.NAME, $SynapseServelessEndpoint.NAME, $SQLDatabaseEndpoint.NAME | Test-Port -Port 1443 -Timeout $TestPortConnectionTimeoutMs
 
@@ -389,13 +412,19 @@ else {
 Write-Host "  ----------------------------------------------------------------------------"
 Write-Host "  SHIR Proxy Settings - Will fail if this is not SHIR machine"
 
-$ProxyEvents = Get-EventLog `
-    -LogName "Integration Runtime" `
-    -InstanceId "26" `
-    -Message "Http Proxy is set to*" `
-    -Newest 15
+try {
+    $ProxyEvents = Get-EventLog `
+        -LogName "Integration Runtime" `
+        -InstanceId "26" `
+        -Message "Http Proxy is set to*" `
+        -Newest 15
 
-$ProxyEvents | Select TimeGenerated, Message
+    $ProxyEvents | Select TimeGenerated, Message
+}
+catch{
+    Write-Host "   - FAILED - NOT A PROBLEM IF NOT Self Hosted IR Machine" 
+    Write-Host "     - $_.Exception"
+}
 
 Write-Host "  ----------------------------------------------------------------------------"
 
@@ -414,7 +443,7 @@ function Test-Endpoint {
     process {        
         Write-Host "   ----------------------------------------------------------------------------"
         Write-Host "   - DNS for ($($Endpoint.NAME))"
-        Write-Host "      - CX DNS:($($Endpoint.ENDPOINT_CX.IPAddress)) / NAME:($($Endpoint.ENDPOINT_CX.Name))"
+        Write-Host "      - INFO:: CX DNS:($($Endpoint.ENDPOINT_CX.IPAddress)) / NAME:($($Endpoint.ENDPOINT_CX.Name))"
 
         $_HaveHostsFileEntry = $false
 
@@ -425,40 +454,40 @@ function Test-Endpoint {
             {
                 if ($HostsFileEntry.HOST -eq $Endpoint.NAME) {
                     $_HaveHostsFileEntry = $true
-                    Write-Host "      - CX HOST FILE:($($HostsFileEntry.IP)) / NAME:($($HostsFileEntry.HOST))" -ForegroundColor Red
+                    Write-Host "      - INFO:: CX HOST FILE:($($HostsFileEntry.IP)) / NAME:($($HostsFileEntry.HOST))" -ForegroundColor Red
                     break
                 }    
             }     
         }
-        Write-Host "      - Public DNS:($($Endpoint.ENDPOINT_PUBLICDNS.IPAddress)) / NAME:($($Endpoint.ENDPOINT_PUBLICDNS.Name))"
+        Write-Host "      - INFO:: Public DNS:($($Endpoint.ENDPOINT_PUBLICDNS.IPAddress)) / NAME:($($Endpoint.ENDPOINT_PUBLICDNS.Name)) - To be used as comparison"
 
         
 
         if ($Endpoint.ENDPOINT_PUBLICDNS.IPAddress -eq $null) 
-        { Write-Host "      - PUBLIC NAME RESOLUTION DIDN'T WORK - DOES NOT MEAN A PROBLEM - Just could not reach Public DNS ($($DNSPublic)) to compare" -ForegroundColor Yellow }
+        { Write-Host "      - INFO:: PUBLIC NAME RESOLUTION DIDN'T WORK - DOES NOT MEAN A PROBLEM - Just could not reach Public DNS ($($DNSPublic)) to compare" -ForegroundColor Yellow }
 
         if ($_HaveHostsFileEntry)
         {# HAVE HOST FILE ENTRY
             
             if ($HostsFileEntry.IP -eq $Endpoint.ENDPOINT_PUBLICDNS.IPAddress) 
-            { Write-Host "      - VM HOST FILE ENTRY AND PUBLIC DNS ARE SAME" -ForegroundColor Green }
-            else { Write-Host "      - VM HOST FILE ENTRY AND PUBLIC DNS ARE NOT SAME" -ForegroundColor Yellow }
+            { Write-Host "      - INFO:: VM HOST FILE ENTRY AND PUBLIC DNS ARE SAME" -ForegroundColor Green }
+            else { Write-Host "      - INFO:: VM HOST FILE ENTRY AND PUBLIC DNS ARE NOT SAME" -ForegroundColor Yellow }
 
-            Write-Host "      - AS USING HOSTS FILE ENTRY - CHECK IF USING PRIVATE LINK or PUBLIC ENDPOINT, COMPARE WITH PUBLIC GATEWAY IP" -ForegroundColor Yellow
+            Write-Host "      - INFO:: AS USING HOSTS FILE ENTRY - CHECK IF USING PRIVATE LINK or PUBLIC ENDPOINT, COMPARE WITH PUBLIC GATEWAY IP" -ForegroundColor Yellow
         }
         else
         {# DOES NOT HAVE HOST FILE ENTRY
             if ($Endpoint.ENDPOINT_CX.IPAddress -eq $null) 
-            { Write-Host "      - CX NAME RESOLUTION DIDN'T WORK" -ForegroundColor Red }
+            { Write-Host "      - ERROR:: CX NAME RESOLUTION DIDN'T WORK" -ForegroundColor Red }
             else {
                 if ($Endpoint.ENDPOINT_CX.IPAddress -eq $Endpoint.ENDPOINT_PUBLICDNS.IPAddress) 
-                { Write-Host "      - INFO: CX DNS SERVER AND PUBLIC DNS ARE SAME. That is not an issue. Just a notice that they are currently EQUAL" -ForegroundColor Green }
-                else { Write-Host "      - INFO: CX DNS SERVER AND PUBLIC DNS ARE NOT SAME. That is not an issue. Just a notice that they are currently DIFFERENT" -ForegroundColor Yellow }
+                { Write-Host "      - INFO:: CX DNS SERVER AND PUBLIC DNS ARE SAME. That is not an issue. Just a notice that they are currently EQUAL" -ForegroundColor Green }
+                else { Write-Host "      - INFO:: CX DNS SERVER AND PUBLIC DNS ARE NOT SAME. That is not an issue. Just a notice that they are currently DIFFERENT" -ForegroundColor Yellow }
     
                 if ($Endpoint.ENDPOINT_CX.Name -like "*.cloudapp.*" -or $Endpoint.ENDPOINT_CX.Name -like "*.control.*") 
-                { Write-Host "      - CX USING PUBLIC ENDPOINT" -ForegroundColor Cyan }
+                { Write-Host "      - INFO:: CX USING PUBLIC ENDPOINT" -ForegroundColor Cyan }
                 elseif ($Endpoint.ENDPOINT_CX.Name -like "*.privatelink.*") 
-                { Write-Host "      - CX USING PRIVATE ENDPOINT" -ForegroundColor Yellow }                   
+                { Write-Host "      - INFO:: CX USING PRIVATE ENDPOINT" -ForegroundColor Yellow }                   
             } 
         }
     }
@@ -503,6 +532,19 @@ Write-Host "   - 443 -----------------------------------------------------------
 Test-Ports $Results443
 Write-Host "   - 1443 ---------------------------------------------------------------------"
 Test-Ports $Results1443
+
+Write-Host "   ----------------------------------------------------------------------------"
+Write-Host "   NOTE on differences for Dedicated pool endpoint"
+Write-Host "   ----------------------------------------------------------------------------"
+Write-Host "   SYNAPSE use endpoints below:"
+Write-Host "    - XXXXXX.sql.azuresynapse.net <--"
+Write-Host "    - XXXXXX-ondemand.sql.azuresynapse.net"
+Write-Host "    - XXXXXX.dev.azuresynapse.net"
+Write-Host ""
+Write-Host "   FORMER SQL DW + WORKSPACE use endpoints below:"
+Write-Host "    - XXXXXX.database.windows.net  <--"
+Write-Host "    - XXXXXX-ondemand.sql.azuresynapse.net"
+Write-Host "    - XXXXXX.dev.azuresynapse.net"
 
 #Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
 #Write-Host "END OF SCRIPT" -ForegroundColor Yellow
