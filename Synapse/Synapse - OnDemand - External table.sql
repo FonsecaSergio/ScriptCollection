@@ -12,10 +12,10 @@ IF NOT EXISTS (SELECT * FROM sys.external_file_formats WHERE name = 'SynapseParq
 	WITH ( FORMAT_TYPE = PARQUET)
 GO
 
-IF NOT EXISTS (SELECT * FROM sys.external_data_sources WHERE name = 'fonsecanet_fonsecanetdatalake_dfs_core_windows_net') 
-	CREATE EXTERNAL DATA SOURCE [fonsecanet_fonsecanetdatalake_dfs_core_windows_net] 
+IF NOT EXISTS (SELECT * FROM sys.external_data_sources WHERE name = 'NAMEstorage_dfs_core_windows_net') 
+	CREATE EXTERNAL DATA SOURCE [NAMEstorage_dfs_core_windows_net] 
 	WITH (
-		LOCATION   = 'https://fonsecanetdatalake.dfs.core.windows.net/fonsecanet', 
+		LOCATION   = 'https://NAMEstorage.dfs.core.windows.net/fonsecanet', 
 	)
 Go
 
@@ -36,7 +36,7 @@ CREATE EXTERNAL TABLE dbo.covid (
 	)
 	WITH (
 	LOCATION = 'Parquet/20201026_ecdc_cases.parquet',
-	DATA_SOURCE = [fonsecanet_fonsecanetdatalake_dfs_core_windows_net],
+	DATA_SOURCE = [NAMEstorage_dfs_core_windows_net],
 	FILE_FORMAT = [SynapseParquetFormat]
 	)
 GO

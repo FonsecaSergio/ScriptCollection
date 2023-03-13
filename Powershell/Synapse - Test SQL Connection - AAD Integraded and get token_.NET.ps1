@@ -22,7 +22,7 @@ Can decrypt token at https://jwt.ms/
 
 # ------------------------------------------
 
-$SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b"
+$SubscriptionId = "de41dc76XXXXXXXXXXXXXXXXXXX"
 $Servername = "xxxxxxxxxx.sql.azuresynapse.net"
 $DatabaseName = "yyyyyyyyyyy"
 

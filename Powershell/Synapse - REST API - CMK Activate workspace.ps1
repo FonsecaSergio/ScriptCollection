@@ -2,11 +2,11 @@
 ACTIVATE SYNAPSE WORKSPACE
 #>
 
-$workspaceName = "fonsecanetcmk"
-$SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b"
+$workspaceName = "SERVERNAME"
+$SubscriptionId = "de41dc76XXXXXXXXXXXXXXXXXXX"
 $ResourceGroup = "testCMK"
 $keyName = "AzureSQLDBKey"
-$vaultName = "FonsecanetKeyVault"
+$vaultName = "NameKeyVault"
 
 # ------------------------------------------
 # these Az modules required

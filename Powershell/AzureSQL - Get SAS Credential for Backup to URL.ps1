@@ -20,7 +20,7 @@ Clear-Host
 # Define global variables for the script  
 $subscriptionName='SEFONSEC Microsoft Azure Internal Consumption'
 $resourceGroupNameStorage = "StorageAccounts"
-$storageAccountName= 'fonsecanetstorage'
+$storageAccountName= 'NAMEstorage'
 $containerName= 'bak'
 $policyName = 'BkpPolicy'
 

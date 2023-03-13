@@ -54,7 +54,7 @@ if($PSVersionTable.Platform)
 using namespace System.Net
 
 param (
-    [string]$WorkspaceName = "fonsecanetsynapse2"
+    [string]$WorkspaceName = "SERVERNAME"
 )
 
 Clear-Host

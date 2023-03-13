@@ -24,7 +24,7 @@
        
 #> 
 param (
-    [string]$SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b",
+    [string]$SubscriptionId = "de41dc76XXXXXXXXXXXXXXXXXXX",
     [bool]$debug = $false
 )
 

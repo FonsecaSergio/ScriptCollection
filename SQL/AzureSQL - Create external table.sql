@@ -11,7 +11,7 @@ CREATE DATABASE SCOPED CREDENTIAL XPTO WITH IDENTITY = 'FonsecaSergio',SECRET = 
 
 CREATE EXTERNAL DATA SOURCE Customer WITH
 (TYPE = RDBMS,
-LOCATION = 'fonsecanet.database.windows.net',
+LOCATION = 'SERVERNAME.database.windows.net',
 DATABASE_NAME = 'Test2',
 CREDENTIAL = XPTO
 ) ;

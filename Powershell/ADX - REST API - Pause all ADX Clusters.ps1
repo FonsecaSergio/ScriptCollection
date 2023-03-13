@@ -13,7 +13,7 @@
 .DESCRIPTION
        
 #> 
-$SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b"
+$SubscriptionId = "de41dc76XXXXXXXXXXXXXXXXXXX"
 #$debug = $true #Just check. No changes
 $debug = $false #Production Mode
 $detailedAPIrequests = $true

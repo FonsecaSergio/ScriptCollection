@@ -19,7 +19,7 @@ Import-Module Az
 
 ########################################################################################################
 #CONNECT TO AZURE
-$SubscriptionName = "SEFONSEC Microsoft Azure Internal Consumption";
+$SubscriptionName = "Microsoft Azure";
 
 $Context = Get-AzContext
 $Context
@@ -36,40 +36,40 @@ Clear-Host
 ########################################################################################################
 Get-AzSqlServerAudit `
     -ResourceGroupName "CSSAzureDB" `
-    -ServerName "fonsecanet"
+    -ServerName "SERVERNAME"
 
 <#     
     ResourceGroupName                   : CSSAzureDB
-    ServerName                          : fonsecanet
+    ServerName                          : SERVERNAME
     AuditActionGroup                    : {SUCCESSFUL_DATABASE_AUTHENTICATION_GROUP,
                                           FAILED_DATABASE_AUTHENTICATION_GROUP, BATCH_COMPLETED_GROUP}
     PredicateExpression                 :
     BlobStorageTargetState              : Enabled
-    StorageAccountResourceId            : /subscriptions/de41dc76-12ed-4406-a032-0c96495def6b/resourceGro
+    StorageAccountResourceId            : /subscriptions/de41dc76XXXXXXXXXXXXXXXXXXX/resourceGro
                                           ups/StorageAccounts/providers/Microsoft.Storage/storageAccounts 
-                                          /fonsecanetsqlaudit
+                                          /STORAGENAME
     StorageKeyType                      : Primary
     RetentionInDays                     : 30
     EventHubTargetState                 : Disabled
     EventHubName                        :
     EventHubAuthorizationRuleResourceId :
     LogAnalyticsTargetState             : Enabled
-    WorkspaceResourceId                 : /subscriptions/de41dc76-12ed-4406-a032-0c96495def6b/resourcegro
+    WorkspaceResourceId                 : /subscriptions/de41dc76XXXXXXXXXXXXXXXXXXX/resourcegro
                                           ups/loganalytics/providers/microsoft.operationalinsights/worksp
-                                          aces/fonsecanetloganalitics 
+                                          aces/NAMEloganalitics 
 #>
 
 ########################################################################################################
 Get-AzSqlDatabaseAudit `
     -ResourceGroupName "CSSAzureDB" `
-    -ServerName "fonsecanet" `
+    -ServerName "SERVERNAME" `
     -DatabaseName "sandbox"
 
 <# 
     DatabaseName                        : sandbox
     AuditAction                         : {}
     ResourceGroupName                   : CSSAzureDB
-    ServerName                          : fonsecanet
+    ServerName                          : SERVERNAME
     AuditActionGroup                    : {}
     PredicateExpression                 :
     BlobStorageTargetState              : Disabled

@@ -15,9 +15,9 @@
 
 Clear-Host
 
-$serverName = "fonsecanet.database.windows.net"
+$serverName = "SERVERNAME.database.windows.net"
 $databaseName = "sandbox"
-$Username = "FonsecaSergio"
+$Username = "UserName"
 
 if ($Password -eq $null) {
     $Password = Read-Host "Enter Pass" -AsSecureString
@@ -26,7 +26,7 @@ if ($Password -eq $null) {
 #Remove-Variable Password
 
 #Get from KeyVault
-#$Password = (Get-AzKeyVaultSecret -VaultName FonsecanetKeyVault -Name AzureSQLDBPassword).SecretValueText
+#$Password = (Get-AzKeyVaultSecret -VaultName NameKeyVault -Name AzureSQLDBPassword).SecretValueText
 
 $query = "SELECT 1"
 $LoopCount = 5

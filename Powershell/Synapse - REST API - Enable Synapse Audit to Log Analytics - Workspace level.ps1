@@ -1,9 +1,9 @@
-﻿$SubscriptionId = "de41dc76-12ed-4406-a032-0c96495def6b"
+﻿$SubscriptionId = "de41dc76XXXXXXXXXXXXXXXXXXX"
 
-$workspaceName = "fonsecanetsynapse"
+$workspaceName = "SERVERNAME"
 $ResourceGroup = "SynapseWorkspace"
 
-$LogAnalyticsName = "fonsecanetsynapselog"
+$LogAnalyticsName = "NameLogAnalytics"
 $LogResGroup = "loganalytics"
 
 $DiagnosticsName = "SQLSecurityAuditEvents"

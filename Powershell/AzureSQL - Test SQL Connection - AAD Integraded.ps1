@@ -15,7 +15,7 @@
 
 Clear-Host
 
-$DatabaseServer = "fonsecanet.database.windows.net,1433"
+$DatabaseServer = "SERVERNAME.database.windows.net,1433"
 $Database = "sandbox"
 
 
