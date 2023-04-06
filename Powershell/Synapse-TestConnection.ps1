@@ -66,7 +66,7 @@
 using namespace System.Net
 
 param (
-    [string]$WorkspaceName = "CHANGESERVERNAME"
+    [string]$WorkspaceName = "fonsecanetsynapse"
 )
 
 $VERSION = "2023-03-08"
