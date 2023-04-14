@@ -53,11 +53,14 @@
     - 2023-04-06 - Code organization
                  - Make API test calls
                  - Improved Parameter request
-                 - Requires Powershell 7
+                 - Requires Powershell 5
+
 #KNOW ISSUES / TO DO
     - Need to improve / test on linux / Mac machines
     - Sign code https://codesigningstore.com/how-to-sign-a-powershell-script
     - Print IPV6 DNS on show results
+    - track usage like sql connectivity script
+    
 
 #> 
 
@@ -92,9 +95,30 @@ Write-Host ("OS version: " + $psVersionTable.OS)
 Write-Host ("PLATFORM version: " + $psVersionTable.Platform)
 
 ####################################################
-Import-Module DnsClient
-Import-Module SqlServer
-Import-Module Az.Accounts -MinimumVersion 2.2.0
+try {
+    Import-Module DnsClient -ErrorAction Stop
+}
+catch {
+    Write-Host "   - ERROR::"  -ForegroundColor Red
+    Write-Host "     - $_.Exception" -ForegroundColor Red
+    Write-Host "     - $_.Exception.Message" -ForegroundColor Red
+}
+
+try {
+    Import-Module SqlServer
+}
+catch {
+    <#Do this if a terminating exception happens#>
+}
+
+try {
+    Import-Module Az.Accounts -MinimumVersion 2.2.0
+}
+catch {
+    <#Do this if a terminating exception happens#>
+}
+
+
 
 
 ####################################################
@@ -599,222 +623,230 @@ Write-Host "--------------------------------------------------------------------
 
 if ($TryToConnect_YorN -eq "Y") {
 
-    $null = Connect-AzAccount -Subscription $SubscriptionID
-
-    $Management_token = (Get-AzAccessToken -Resource "https://management.azure.com").Token
-    $Management_headers = @{ Authorization = "Bearer $Management_token" }
-
-    $Dev_token = (Get-AzAccessToken -Resource "https://dev.azuresynapse.net").Token
-    $Dev_headers = @{ Authorization = "Bearer $Dev_token" }
-
-    $SQL_token = (Get-AzAccessToken -Resource "https://database.windows.net").Token
-
-
-    $WorkspaceObject = $null
-    $SQLEndpoint = $null
-    $SQLOndemandEndpoint = $null
-    $DevEndpoint = $null
-    [bool]$isSynapseWorkspace = $false
-
     try {
+        $null = Connect-AzAccount -Subscription $SubscriptionID -ErrorAction Stop
 
-        ####################################################################################################################################################
-        Write-Host "  ----------------------------------------------------------------------------"
-        Write-Host "  -Testing API call to management endpoint (management.azure.com) on Port 443" -ForegroundColor DarkGray
-        
+        $Management_token = (Get-AzAccessToken -Resource "https://management.azure.com" -ErrorAction Stop).Token
+        $Management_headers = @{ Authorization = "Bearer $Management_token" }
+
+        $Dev_token = (Get-AzAccessToken -Resource "https://dev.azuresynapse.net" -ErrorAction Stop).Token
+        $Dev_headers = @{ Authorization = "Bearer $Dev_token" }
+
+        $SQL_token = (Get-AzAccessToken -Resource "https://database.windows.net" -ErrorAction Stop).Token
+
+
+        $WorkspaceObject = $null
+        $SQLEndpoint = $null
+        $SQLOndemandEndpoint = $null
+        $DevEndpoint = $null
+        [bool]$isSynapseWorkspace = $false
+
         try {
-            #https://learn.microsoft.com/en-us/rest/api/synapse/workspaces/list?tabs=HTTP
-            #GET https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Synapse/workspaces?api-version=2021-06-01
 
-            $uri = "https://management.azure.com/subscriptions/$($SubscriptionID)"
-            $uri += "/providers/Microsoft.Synapse/workspaces?api-version=2021-06-01"
-        
-            Write-Host "   > API CALL ($($uri))"
-        
-            $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Management_headers
-        
-            foreach ($WorkspaceObject in $result.value)
-            {
-                if ($WorkspaceObject.name -eq $WorkspaceName)
-                {
-                    Write-Host "   - Workspace ($($WorkspaceObject.name)) Found"
-                    
-                    $SQLOndemandEndpoint = $WorkspaceObject.properties.connectivityEndpoints.sqlOnDemand
-                    $DevEndpoint = $WorkspaceObject.properties.connectivityEndpoints.dev    
-        
-                    if ($WorkspaceObject.properties.extraProperties.WorkspaceType -eq "Normal") {
-                        Write-Host "     - This is a Synapse workspace (Not a former SQL DW)"
-                        $SQLEndpoint = $WorkspaceObject.properties.connectivityEndpoints.sql
-                        $isSynapseWorkspace = $true
-                    }
-        
-                    if ($WorkspaceObject.properties.extraProperties.WorkspaceType -eq "Connected") {
-                        Write-Host "     - Former SQL DW + Workspace experience"
-                        $SQLEndpoint = "$WorkspaceName.database.windows.net"
-                    }
-                    break
-                }
-            }
-        
-            if ($DevEndpoint -ne $null) 
-            {
-        
-                Write-Host "     - SQLEndpoint: ($($SQLEndpoint))"
-                Write-Host "     - SQLOndemandEndpoint: ($($SQLOndemandEndpoint))"
-                Write-Host "     - DevEndpoint: ($($DevEndpoint))"
-            }
-            else {
-                Write-Host "    - No Synapse Workspace found" -ForegroundColor Yellow
-        
-                #https://learn.microsoft.com/en-us/rest/api/sql/2022-05-01-preview/servers/list?tabs=HTTP
-                #GET https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Sql/servers?api-version=2022-05-01-preview
+            ####################################################################################################################################################
+            Write-Host "  ----------------------------------------------------------------------------"
+            Write-Host "  -Testing API call to management endpoint (management.azure.com) on Port 443" -ForegroundColor DarkGray
+            
+            try {
+                #https://learn.microsoft.com/en-us/rest/api/synapse/workspaces/list?tabs=HTTP
+                #GET https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Synapse/workspaces?api-version=2021-06-01
+
                 $uri = "https://management.azure.com/subscriptions/$($SubscriptionID)"
-                $uri += "/providers/Microsoft.SQL/servers?api-version=2022-05-01-preview"
-        
+                $uri += "/providers/Microsoft.Synapse/workspaces?api-version=2021-06-01"
+            
                 Write-Host "   > API CALL ($($uri))"
-        
+            
                 $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Management_headers
-        
-                foreach ($SQLObject in $result.value)
+            
+                foreach ($WorkspaceObject in $result.value)
                 {
-                    if ($SQLObject.name -eq $WorkspaceName)
+                    if ($WorkspaceObject.name -eq $WorkspaceName)
                     {
-                        Write-Host "    - Logical SQL Server ($($SQLObject.name)) Found"            
-        
-                        $SQLEndpoint = "$WorkspaceName.database.windows.net"
-                        Write-Host "      - SQLEndpoint: ($($SQLEndpoint))"
+                        Write-Host "   - Workspace ($($WorkspaceObject.name)) Found"
+                        
+                        $SQLOndemandEndpoint = $WorkspaceObject.properties.connectivityEndpoints.sqlOnDemand
+                        $DevEndpoint = $WorkspaceObject.properties.connectivityEndpoints.dev    
+            
+                        if ($WorkspaceObject.properties.extraProperties.WorkspaceType -eq "Normal") {
+                            Write-Host "     - This is a Synapse workspace (Not a former SQL DW)"
+                            $SQLEndpoint = $WorkspaceObject.properties.connectivityEndpoints.sql
+                            $isSynapseWorkspace = $true
+                        }
+            
+                        if ($WorkspaceObject.properties.extraProperties.WorkspaceType -eq "Connected") {
+                            Write-Host "     - Former SQL DW + Workspace experience"
+                            $SQLEndpoint = "$WorkspaceName.database.windows.net"
+                        }
                         break
                     }
                 }
-            }
-            Write-Host "   - SUCESS:: Connection Management ENDPOINT"  -ForegroundColor Green        
-        }
-        catch {
-            Write-Host "   - ERROR:: TEST Management ENDPOINT"  -ForegroundColor Red
-            Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-        }
-
-
-        ####################################################################################################################################################
-        #Testing SQL connection
-        try {
-            if ($SQLEndpoint -ne $null) {
-                Write-Host "  ----------------------------------------------------------------------------"
-                Write-Host "  -Testing SQL connection ($($SQLEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
-                $result = Invoke-Sqlcmd -ServerInstance $SQLEndpoint -Database master -AccessToken $SQL_token -query 'select TOP 1 connection_id, GETUTCDATE() as DATE from sys.dm_exec_connections where session_id = @@SPID' -ErrorAction Stop
-                if (!$result.HasErrors)
+            
+                if ($DevEndpoint -ne $null) 
                 {
-                    Write-Host "   - SUCESS:: Connection connection_id($($result.connection_id)) / UTC date($($result.DATE))" -ForegroundColor Green
-                }       
-            }else {
-                Write-Host "   - ERROR:: CANNOT TEST SQL connection"  -ForegroundColor Red
-            }        
-        }
-        catch {
-            Write-Host "   - ERROR:: TEST SQL ENDPOINT"  -ForegroundColor Red
-            Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-        }
-
-
-        ####################################################################################################################################################
-        #Testing SQL Ondemand connection
-        try {
-            if ($SQLOndemandEndpoint -ne $null) {
-                Write-Host "  ----------------------------------------------------------------------------"
-                Write-Host "  -Testing SQL Ondemand connection ($($SQLOndemandEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
-                $result = Invoke-Sqlcmd -ServerInstance $SQLOndemandEndpoint -Database master -AccessToken $SQL_token -query 'select TOP 1 connection_id, GETUTCDATE() as DATE from sys.dm_exec_connections where session_id = @@SPID' -ErrorAction Stop
-                if (!$result.HasErrors)
-                {
-                    Write-Host "   - SUCESS:: Connection connection_id($($result.connection_id)) / UTC date($($result.DATE))"  -ForegroundColor Green
-                }       
-            }else {
-                if ($isSynapseWorkspace) {
-                    Write-Host "   - ERROR:: CANNOT TEST SQL Ondemand connection"  -ForegroundColor Red
+            
+                    Write-Host "     - SQLEndpoint: ($($SQLEndpoint))"
+                    Write-Host "     - SQLOndemandEndpoint: ($($SQLOndemandEndpoint))"
+                    Write-Host "     - DevEndpoint: ($($DevEndpoint))"
                 }
-                
-            }          
-        }
-        catch {
-            Write-Host "   - ERROR:: TEST SQL ONDEMAND ENDPOINT"  -ForegroundColor Red
-            Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-        }
-
-        ####################################################################################################################################################
-        #Testing SQL DEV API
-        try 
-        {
-            if ($DevEndpoint -ne $null) 
-            {
-                Write-Host "  ----------------------------------------------------------------------------"
-                Write-Host "  -Testing SQL DEV API ($($DevEndpoint)) on Port 443" -ForegroundColor DarkGray
-
-                #https://learn.microsoft.com/en-us/rest/api/synapse/data-plane/workspace/get?tabs=HTTP
-                #GET {endpoint}/workspace?api-version=2020-12-01         
-                
-                    $uri = "$($DevEndpoint)/workspace?api-version=2020-12-01"
+                else {
+                    Write-Host "    - No Synapse Workspace found" -ForegroundColor Yellow
+            
+                    #https://learn.microsoft.com/en-us/rest/api/sql/2022-05-01-preview/servers/list?tabs=HTTP
+                    #GET https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Sql/servers?api-version=2022-05-01-preview
+                    $uri = "https://management.azure.com/subscriptions/$($SubscriptionID)"
+                    $uri += "/providers/Microsoft.SQL/servers?api-version=2022-05-01-preview"
             
                     Write-Host "   > API CALL ($($uri))"
             
-                    $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Dev_headers
-                    Write-Host "   - SUCESS:: Connection DEV ENDPOINT"  -ForegroundColor Green
-                        
-            }
-            else {
-                if ($isSynapseWorkspace) {
-                    Write-Host "   - ERROR:: CANNOT TEST SQL DEV API connection"  -ForegroundColor Red
+                    $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Management_headers
+            
+                    foreach ($SQLObject in $result.value)
+                    {
+                        if ($SQLObject.name -eq $WorkspaceName)
+                        {
+                            Write-Host "    - Logical SQL Server ($($SQLObject.name)) Found"            
+            
+                            $SQLEndpoint = "$WorkspaceName.database.windows.net"
+                            Write-Host "      - SQLEndpoint: ($($SQLEndpoint))"
+                            break
+                        }
+                    }
                 }
+                Write-Host "   - SUCESS:: Connection Management ENDPOINT"  -ForegroundColor Green        
             }
-        }
-        catch {
-            Write-Host "   - ERROR:: TEST DEV ENDPOINT"  -ForegroundColor Red
-            Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-        }
-    
+            catch {
+                Write-Host "   - ERROR:: TEST Management ENDPOINT"  -ForegroundColor Red
+                Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+            }
 
-        ####################################################################################################################################################
-        <# NOT WORKING YET
-        try 
-        {
-            if ($SQLOndemandEndpoint -ne $null) 
+
+            ####################################################################################################################################################
+            #Testing SQL connection
+            try {
+                if ($SQLEndpoint -ne $null) {
+                    Write-Host "  ----------------------------------------------------------------------------"
+                    Write-Host "  -Testing SQL connection ($($SQLEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
+                    $result = Invoke-Sqlcmd -ServerInstance $SQLEndpoint -Database master -AccessToken $SQL_token -query 'select TOP 1 connection_id, GETUTCDATE() as DATE from sys.dm_exec_connections where session_id = @@SPID' -ErrorAction Stop
+                    if (!$result.HasErrors)
+                    {
+                        Write-Host "   - SUCESS:: Connection connection_id($($result.connection_id)) / UTC date($($result.DATE))" -ForegroundColor Green
+                    }       
+                }else {
+                    Write-Host "   - ERROR:: CANNOT TEST SQL connection"  -ForegroundColor Red
+                }        
+            }
+            catch {
+                Write-Host "   - ERROR:: TEST SQL ENDPOINT"  -ForegroundColor Red
+                Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+            }
+
+
+            ####################################################################################################################################################
+            #Testing SQL Ondemand connection
+            try {
+                if ($SQLOndemandEndpoint -ne $null) {
+                    Write-Host "  ----------------------------------------------------------------------------"
+                    Write-Host "  -Testing SQL Ondemand connection ($($SQLOndemandEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
+                    $result = Invoke-Sqlcmd -ServerInstance $SQLOndemandEndpoint -Database master -AccessToken $SQL_token -query 'select TOP 1 connection_id, GETUTCDATE() as DATE from sys.dm_exec_connections where session_id = @@SPID' -ErrorAction Stop
+                    if (!$result.HasErrors)
+                    {
+                        Write-Host "   - SUCESS:: Connection connection_id($($result.connection_id)) / UTC date($($result.DATE))"  -ForegroundColor Green
+                    }       
+                }else {
+                    if ($isSynapseWorkspace) {
+                        Write-Host "   - ERROR:: CANNOT TEST SQL Ondemand connection"  -ForegroundColor Red
+                    }
+                    
+                }          
+            }
+            catch {
+                Write-Host "   - ERROR:: TEST SQL ONDEMAND ENDPOINT"  -ForegroundColor Red
+                Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+            }
+
+            ####################################################################################################################################################
+            #Testing SQL DEV API
+            try 
             {
-                Write-Host "  ----------------------------------------------------------------------------"
-                Write-Host "  -Testing SQL ONDEMAND API ($($DevEndpoint)) on Port 443" -ForegroundColor DarkGray
+                if ($DevEndpoint -ne $null) 
+                {
+                    Write-Host "  ----------------------------------------------------------------------------"
+                    Write-Host "  -Testing SQL DEV API ($($DevEndpoint)) on Port 443" -ForegroundColor DarkGray
 
-                #NO DOCUMENTATION
-                #https://XXXXXXX-ondemand.sql.azuresynapse.net/databases/master/query?api-version=2018-08-01-preview&application=listSqlOnDemandDatabases&topRows=5000&queryTimeoutInMinutes=59&allResultSets=true
-                #https://<workspace-name>-ondemand.sql.azuresynapse.net/list
+                    #https://learn.microsoft.com/en-us/rest/api/synapse/data-plane/workspace/get?tabs=HTTP
+                    #GET {endpoint}/workspace?api-version=2020-12-01         
+                    
+                        $uri = "$($DevEndpoint)/workspace?api-version=2020-12-01"
                 
-                    $uri = "https://$($WorkspaceName)-ondemand.sql.azuresynapse.net/list"
-            
-                    $Headers = $Dev_headers
-
-
-                    Write-Host "   > API CALL ($($uri))"
-            
-                    $result = Invoke-RestMethod -Method Post -ContentType "application/json" -Uri $uri -Headers $Dev_headers
-                    Write-Host "   - SUCESS:: Connection SQL ONDEMAND API"  -ForegroundColor Green
-                        
-            }
-            else {
-                if ($isSynapseWorkspace) {
-                    Write-Host "   - ERROR:: CANNOT TEST SQL ONDEMAND API connection"  -ForegroundColor Red
+                        Write-Host "   > API CALL ($($uri))"
+                
+                        $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Dev_headers
+                        Write-Host "   - SUCESS:: Connection DEV ENDPOINT"  -ForegroundColor Green
+                            
+                }
+                else {
+                    if ($isSynapseWorkspace) {
+                        Write-Host "   - ERROR:: CANNOT TEST SQL DEV API connection"  -ForegroundColor Red
+                    }
                 }
             }
+            catch {
+                Write-Host "   - ERROR:: TEST DEV ENDPOINT"  -ForegroundColor Red
+                Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+            }
+        
+
+            ####################################################################################################################################################
+            <# NOT WORKING YET
+            try 
+            {
+                if ($SQLOndemandEndpoint -ne $null) 
+                {
+                    Write-Host "  ----------------------------------------------------------------------------"
+                    Write-Host "  -Testing SQL ONDEMAND API ($($DevEndpoint)) on Port 443" -ForegroundColor DarkGray
+
+                    #NO DOCUMENTATION
+                    #https://XXXXXXX-ondemand.sql.azuresynapse.net/databases/master/query?api-version=2018-08-01-preview&application=listSqlOnDemandDatabases&topRows=5000&queryTimeoutInMinutes=59&allResultSets=true
+                    #https://<workspace-name>-ondemand.sql.azuresynapse.net/list
+                    
+                        $uri = "https://$($WorkspaceName)-ondemand.sql.azuresynapse.net/list"
+                
+                        $Headers = $Dev_headers
+
+
+                        Write-Host "   > API CALL ($($uri))"
+                
+                        $result = Invoke-RestMethod -Method Post -ContentType "application/json" -Uri $uri -Headers $Dev_headers
+                        Write-Host "   - SUCESS:: Connection SQL ONDEMAND API"  -ForegroundColor Green
+                            
+                }
+                else {
+                    if ($isSynapseWorkspace) {
+                        Write-Host "   - ERROR:: CANNOT TEST SQL ONDEMAND API connection"  -ForegroundColor Red
+                    }
+                }
+            }
+            catch {
+                Write-Host "   - ERROR:: TEST SQL ONDEMAND API"  -ForegroundColor Red
+                Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+            }
+
+            #>
+
+
         }
         catch {
-            Write-Host "   - ERROR:: TEST SQL ONDEMAND API"  -ForegroundColor Red
-            Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "   - ERROR::"  -ForegroundColor Red
+            Write-Host "     - $_.Exception" -ForegroundColor Red
+            Write-Host "     - $_.Exception.Message" -ForegroundColor Red
         }
-
-        #>
-
-
     }
     catch {
         Write-Host "   - ERROR::"  -ForegroundColor Red
         Write-Host "     - $_.Exception" -ForegroundColor Red
         Write-Host "     - $_.Exception.Message" -ForegroundColor Red
     }
+
 }else {
     Write-Host "   - INFO:: NO API REQUESTS MADE AS REQUESTED ON PARAMETER TryToConnect_YorN"  -ForegroundColor Yellow
 }
