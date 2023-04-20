@@ -5,7 +5,7 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2023-04-19
+    Last Updated: 2023-04-20
 
     ## Copyright (c) Microsoft Corporation.
     #Licensed under the MIT license.
@@ -28,6 +28,8 @@
     - Try to connect to SQL and SQLOndemand APIs using port 1433
     
     REQUIRES
+        IF want to run as script
+            - Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process
         -Import-Module DnsClient
         -Import-Module Az.Accounts -MinimumVersion 2.2.0
             - Install-Module -Name Az -Repository PSGallery -Force
@@ -38,12 +40,6 @@
 .PARAMETER WorkspaceName
 
 .PARAMETER SubscriptionID
-
-.PARAMETER TryToConnect_YorN
-If use Y will ask for auth and use it to:
-    - Make API test calls to apis like management.azure.com / https://WORKSPACE.dev.azuresynapse.net
-    - Try to connect to SQL and SQLOndemand APIs using port 1433
-
 
 .DESCRIPTION
 ADDITIONAL INFO
@@ -77,15 +73,17 @@ ADDITIONAL INFO
                  - When name resolution fails. Test port shows CLOSED
                  - Check if machine is windows before executing. Not tested on Linux or Mac
     - 2023-03-08 - Test AAD Login endpoints ("login.windows.net" / "login.microsoftonline.com" / "secure.aadcdn.microsoftonline-p.com")
-    - 2023-04-19 - Code organization
+    - 2023-04-20 - Code organization
                  - Make API test calls
                  - Improved Parameter request
+                 - Add links and solution to errors
 
 
 #KNOW ISSUES / TO DO
     - Need to make / test on linux / Mac machines
     - Sign code
     - Print IPV6 DNS on show results
+    - Add links and solution to errors
 #> 
 
 
@@ -101,25 +99,21 @@ param (
     [Parameter(Mandatory = $true, HelpMessage = "Subscription ID")]
     [ValidatePattern("[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$")]    
     [string]
-    $SubscriptionID,
-    [Parameter(Mandatory = $true, HelpMessage = "Try to connect to Synapse APIs (Will you your AAD auth) - Answer Y or N")]
-    [ValidatePattern("^[YN]$")]
-    [string]
-    $TryToConnect_YorN
+    $SubscriptionID
 )
 
 Clear-Host
 
 ####################################################################################################################################################
 #LOG VERSIONS
-$VERSION = "2023-04-19"
+New-Variable -Name VERSION -Value "2023-04-20" -Option Constant -ErrorAction Ignore
+
 Write-Host ("Current version: " + $VERSION)
 Write-Host ("PS version: " + $psVersionTable.PSVersion)
 Write-Host ("PS OS version: " + $psVersionTable.OS)
 Write-Host ("System.Environment OS version: " + [System.Environment]::OSVersion.Platform)
 Write-Host ("WorkspaceName: " + $WorkspaceName)
 Write-Host ("SubscriptionID: " + $SubscriptionID)
-Write-Host ("TryToConnect_YorN: " + $TryToConnect_YorN)
 
 
 ####################################################################################################################################################
@@ -147,11 +141,12 @@ catch {
 #region OTHER PARAMETERS / CONSTANTS
 
 [string]$DNSPublic = "8.8.8.8" #GoogleDNS
-$TestPortConnectionTimeoutMs = 1000
-$SQLConnectionTimeout = 15
-$SQLQueryTimeout = 15
+[int]$TestPortConnectionTimeoutMs = 2000
+[int]$SQLConnectionTimeout = 15
+[int]$SQLQueryTimeout = 15
 
 #endregion OTHER PARAMETERS / CONSTANTS
+
 
 ####################################################################################################################################################
 #region Class
@@ -189,6 +184,8 @@ Class EndpointTest
     [String]$PublicIP
     [String]$PublicCNAME
 
+    [bool]$isAnyPortClosed = $false
+
     EndpointTest () {}
     EndpointTest ([Endpoint]$EndpointToBeTested) 
     {
@@ -200,14 +197,13 @@ Class EndpointTest
     {
         try 
         {
-            Write-Host " -INFO:: Trying to resolve DNS for $($this.Endpoint.Name) from Customer DNS" -ForegroundColor DarkGray
             $DNSResults = (Resolve-DnsName -Name $this.Endpoint.Name -DnsOnly -Type A -QuickTimeout -ErrorAction Stop)
             $this.CXResolvedIP = @($DNSResults.IP4Address)[0]
             $this.CXResolvedCNAME = $DNSResults.NameHost[$DNSResults.NameHost.Count - 1]
         }
         catch 
         {
-            Write-Host "   - ERROR:: Resolve_DnsName_CXDNS" -ForegroundColor Red
+            Write-Host "   - ERROR:: Trying to resolve DNS for $($this.Endpoint.Name) from Customer DNS" -ForegroundColor DarkGray
             Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
         }
     }
@@ -217,21 +213,20 @@ Class EndpointTest
     {
         try 
         {
-            Write-Host " -INFO:: Trying to resolve DNS for $($this.Endpoint.Name) with DNS Server $($DNSServer) - NOT AN ISSUE IF FAIL. Used just for comparison" -ForegroundColor DarkGray
             $DNSResults = (Resolve-DnsName -Name $this.Endpoint.Name -DnsOnly -Type A -QuickTimeout -Server $DNSServer  -ErrorAction Stop)
             $this.PublicIP = @($DNSResults.IP4Address)[0]
             $this.PublicCNAME = $DNSResults.NameHost[$DNSResults.NameHost.Count - 1]
         }
         catch 
         {
-            Write-Host "   - ERROR:: Resolve_DnsName_PublicDNS" -ForegroundColor Red
+            Write-Host "   - ERROR:: Trying to resolve DNS for $($this.Endpoint.Name) with DNS Server $($DNSServer) - NOT AN ISSUE IF FAIL. Used just for comparison" -ForegroundColor DarkGray
             Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
         }
     }
 
     #----------------------------------------------------------------------------------------------------------------------
     #https://copdips.com/2019/09/fast-tcp-port-check-in-powershell.html
-    [void] Test_Ports ([Int]$Timeout = 1000)
+    [void] Test_Ports ([Int]$Timeout = 2000)
     {
         foreach ($Port in $this.Endpoint.PortsNeeded)
         {
@@ -240,8 +235,6 @@ Class EndpointTest
 
                 if($this.CXResolvedIP -ne $null) 
                 {
-                    Write-Host " -INFO:: Testing Port $($this.Endpoint.Name) / IP($($this.CXResolvedIP)):PORT($($Port.Port))" -ForegroundColor DarkGray
-
                     $portOpened = $false
 
                     $portOpened = $tcpClient.ConnectAsync($this.CXResolvedIP, $Port.Port).Wait($Timeout)
@@ -254,7 +247,7 @@ Class EndpointTest
                     }                   
                 } 
                 else 
-                {
+                {                    
                     Write-Host " -INFO:: NOT Testing Port / IP NOT VALID - $($this.Endpoint.Name) / IP($($this.CXResolvedIP)):PORT($($Port.Port))" -ForegroundColor Yellow
                     $Port.Result = "NOT VALID IP - NAME NOT RESOLVED"
                 }
@@ -263,14 +256,16 @@ Class EndpointTest
             }
             catch {
                 $Port.Result = "CLOSED"
+                Write-Host " -ERROR:: Testing Port $($this.Endpoint.Name) / IP($($this.CXResolvedIP)):PORT($($Port.Port))" -ForegroundColor DarkGray
+
                 if ($_.Exception.InnerException.InnerException -ne $null)
                 {
                     if ($_.Exception.InnerException.InnerException.ErrorCode -eq 11001) { #11001 No such host is known                        
-                        Write-Host " -Error at Test-Port: ($($this.Endpoint.Name) / $($this.CXResolvedIP) : $($Port.Port)) - $($_.Exception.InnerException.InnerException.Message)" -ForegroundColor REd
+                        Write-Host "  -ERROR:: Test-Port: ($($this.Endpoint.Name) / $($this.CXResolvedIP) : $($Port.Port)) - $($_.Exception.InnerException.InnerException.Message)" -ForegroundColor REd
                     }
                 }
                 else {
-                    Write-Host " -Error at Test-Port: $($_.Exception.Message)" -ForegroundColor REd
+                    Write-Host "  -ERROR:: Test-Port: $($_.Exception.Message)" -ForegroundColor REd
                 }                
             }          
         }
@@ -306,9 +301,7 @@ Class EndpointTest
 
         if ($_HaveHostsFileEntry)
         {# HAVE HOST FILE ENTRY           
-            if ($HostsFileEntry.IP -eq $this.PublicIP) 
-                { Write-Host "      - INFO:: VM HOST FILE ENTRY AND PUBLIC DNS ARE SAME" -ForegroundColor Green }
-            else 
+            if ($HostsFileEntry.IP -ne $this.PublicIP) 
                 { Write-Host "      - INFO:: VM HOST FILE ENTRY AND PUBLIC DNS ARE NOT SAME" -ForegroundColor Yellow }
 
             Write-Host "      - INFO:: ENDPOINT CHANGED ON HOSTS FILE. NEED TO MANUALLY CHECK IF USING PRIVATE LINK or PUBLIC ENDPOINT" -ForegroundColor Yellow
@@ -339,11 +332,19 @@ Class EndpointTest
         foreach ($Port in $this.Endpoint.PortsNeeded)
         {
             if($Port.Result -eq "CONNECTED")
-            { Write-host "      - PORT $($Port.Port.PadRight(4," ")) - RESULT: $($Port.Result)"  -ForegroundColor Green}
+                {
+                    Write-host "      - PORT $($Port.Port.PadRight(4," ")) - RESULT: $($Port.Result)"  -ForegroundColor Green 
+                }
             elseif($Port.Result -eq "CLOSED" -or $Port.Result -contains "NOT VALID IP")
-            { Write-host "      - PORT $($Port.Port.PadRight(4," ")) - RESULT: $($Port.Result)"  -ForegroundColor Red}
+                { 
+                    $this.isAnyPortClosed = $true;
+                    Write-host "      - PORT $($Port.Port.PadRight(4," ")) - RESULT: $($Port.Result)"  -ForegroundColor Red
+                }
             else
-            { Write-host "      - PORT $($Port.Port.PadRight(4," ")) - RESULT: $($Port.Result)"  -ForegroundColor Yellow}
+                {
+                    $this.isAnyPortClosed = $true; 
+                    Write-host "      - PORT $($Port.Port.PadRight(4," ")) - RESULT: $($Port.Result)"  -ForegroundColor Yellow
+                }
         }       
     }
 }
@@ -352,13 +353,8 @@ Class EndpointTest
 
 
 
-
-
-
 ####################################################################################################################################################
-#Endpoints to be tested
-
-#region Endpoints
+#region Endpoints to be tested
 $EndpointTestList = New-Object Collections.Generic.List[EndpointTest]
 
 $SynapseSQLEndpoint = [Endpoint]::new(
@@ -415,101 +411,96 @@ $AADEndpoint3 = [Endpoint]::new(
 )
 $EndpointTestList.Add([EndpointTest]::new($AADEndpoint3))
 
-#endregion Endpoints
-
+#endregion Endpoints to be tested
 
 
 
 ####################################################################################################################################################
-# COLLECTING DATA
+#region COLLECTING DATA
 
 Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
 Write-Host "COLLECTING DATA" -ForegroundColor Yellow
 Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
+Write-Host "..."
 
-####################################################################################################################################################
-#region GET HOSTS FILE ENTRIES
-
+#----------------------------------------------------------------------------------------------------------------------
+#Get Host File entries
 function Get-HostsFilesEntries 
-{   
-    $Pattern = '^(?<IP>\d{1,3}(\.\d{1,3}){3})\s+(?<Host>.+)$'
-    $File    = "$env:SystemDrive\Windows\System32\Drivers\etc\hosts"
-
-    $result = [System.Collections.ArrayList]::new()
-
-    (Get-Content -Path $File)  | ForEach-Object {
-        If ($_ -match $Pattern) {
-            $Entries += "$($Matches.IP),$($Matches.Host)"
-
-            $null = $result.Add([PSCustomObject]@{
-                IP   = $Matches.IP
-                HOST = $Matches.Host
-                })
+{
+    try {
+        $Pattern = '^(?<IP>\d{1,3}(\.\d{1,3}){3})\s+(?<Host>.+)$'
+        $File    = "$env:SystemDrive\Windows\System32\Drivers\etc\hosts"
+    
+        $result = [System.Collections.ArrayList]::new()
+    
+        (Get-Content -Path $File)  | ForEach-Object {
+            If ($_ -match $Pattern) {
+                $Entries += "$($Matches.IP),$($Matches.Host)"
+    
+                $null = $result.Add([PSCustomObject]@{
+                    IP   = $Matches.IP
+                    HOST = $Matches.Host
+                    })
+            }
         }
+    
+        return @( $result )        
+    }
+    catch {
+        Write-Host "   - ERROR:: Get-HostsFilesEntries" -ForegroundColor Red
+        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red   
     }
 
-    return @( $result )
 }
-
-Write-Host "  ----------------------------------------------------------------------------"
-Write-Host "  GET HOSTS FILE ENTRIES"
 $HostsFileEntries = @(Get-HostsFilesEntries)
 
-#endregion GET HOSTS FILE ENTRIES
 
-####################################################################################################################################################
-#region GET DNS SERVERS
+#----------------------------------------------------------------------------------------------------------------------
+# Get DNSs used by CX
 function Get-DnsCxServerAddresses {   
-    $AddressFamilyIPV4 = 2 #AddressFamily -eq 2 = "IPv4"
+    try {
+        $AddressFamilyIPV4 = 2 #AddressFamily -eq 2 = "IPv4"
 
-    $DNSServers = Get-DnsClientServerAddress | `
-        Where-Object {$_.AddressFamily -eq $AddressFamilyIPV4 } | ` 
-        Select-Object -ExpandProperty ServerAddresses -Unique
+        $DNSServers = Get-DnsClientServerAddress -ErrorAction Stop | `
+            Where-Object {$_.AddressFamily -eq $AddressFamilyIPV4 } | ` 
+            Select-Object -ExpandProperty ServerAddresses -Unique
+    
+        return $DNSServers        
+    }
+    catch {
+        Write-Host "   - ERROR:: Get-DnsCxServerAddresses" -ForegroundColor Red
+        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+    }
 
-    return $DNSServers
 }
 
-Write-Host "  ----------------------------------------------------------------------------"
-Write-Host "  GET DNS SERVERS"
 $DnsCxServerAddresses = @(Get-DnsCxServerAddresses)
 
 Get-DnsClientServerAddress | ? serveraddresses
 
-#endregion GET DNS SERVERS
-
-####################################################################################################################################################
-#region  Resolve using current DNS
-
-Write-Host "  ----------------------------------------------------------------------------"
-Write-Host "  TEST NAME RESOLUTION"
-
+#----------------------------------------------------------------------------------------------------------------------
+# Test name resolution against CX DNS and Public DNS
 foreach ($EndpointTest in $EndpointTestList)
 {
     $EndpointTest.Resolve_DnsName_CXDNS()
     $EndpointTest.Resolve_DnsName_PublicDNS($DNSPublic)
 }
 
-#endregion  Resolve using current DNS
-
-####################################################################################################################################################
-#region Test Ports
-
-Write-Host "  ----------------------------------------------------------------------------"
-Write-Host "  TEST PORTS NEEDED"
-
+#----------------------------------------------------------------------------------------------------------------------
+# Checking Ports
 foreach ($EndpointTest in $EndpointTestList)
 {
     $EndpointTest.Test_Ports($TestPortConnectionTimeoutMs)
 }
 
-#endregion Test Ports
+
+#endregion COLLECTING DATA
 
 
 
 ####################################################################################################################################################
 # RESULTS
 ####################################################################################################################################################
-
 Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
 Write-Host "RESULTS " -ForegroundColor Yellow
 Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
@@ -573,7 +564,7 @@ try {
     $IESettings = Get-ItemProperty -Path "Registry::HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" -ErrorAction Stop
 
     if ($IESettings.ProxyEnable -eq 0) {
-        Write-Host "   - INFO:: NO INTERNET PROXY ON SERVER / BROWSER"
+        Write-Host "   - INFO:: NO INTERNET PROXY ON SERVER / BROWSER" -ForegroundColor Green
     }
     else {
         Write-Host "   - WARN:: PROXY ENABLED ON SERVER $($IESettings.ProxyServer)" -ForegroundColor Red
@@ -587,9 +578,6 @@ catch {
 
 
 ####################################################################################################################################################
-Write-Host "  ----------------------------------------------------------------------------"
-Write-Host "  SHIR Proxy Settings" 
-
 try {
     $ProxyEvents = Get-EventLog `
         -LogName "Integration Runtime" `
@@ -598,10 +586,17 @@ try {
         -Newest 15 `
         -ErrorAction Stop
 
-    $ProxyEvents | Select TimeGenerated, Message
+    Write-Host "  ----------------------------------------------------------------------------"
+    Write-Host "  SHIR Proxy Settings" 
+        $ProxyEvents | Select TimeGenerated, Message
+
+
 }
 Catch [Exception]
 {
+    #DO NOTHING, BELOW JUST DEBUG
+
+    <#
     $theError = $_
     
     Switch($theError.Exception.GetType().FullName)
@@ -616,12 +611,11 @@ Catch [Exception]
             Write-Host "     - $($theError)" -ForegroundColor Yellow      
         }
     }
+    #>
 }
 
 Write-Host "  ----------------------------------------------------------------------------"
 #endregion RESULTS - PROXY SETTINGS
-
-
 
 ####################################################################################################################################################
 #region RESULTS - NAME RESOLUTIONS
@@ -636,34 +630,62 @@ foreach ($EndpointTest in $EndpointTestList)
 
 #endregion RESULTS - NAME RESOLUTIONS
 
-
-
 ####################################################################################################################################################
 #region RESULTS - PORTS OPEN
 
 Write-Host "  ----------------------------------------------------------------------------"
 Write-Host "  PORTS OPEN (Used CX DNS or Host File entry listed above)"
 
+$isAnyPortClosed = $false
 foreach ($EndpointTest in $EndpointTestList)
 {
     $EndpointTest.PrintTest_Ports()
+
+    if ($EndpointTest.isAnyPortClosed) 
+        { $isAnyPortClosed = $true }
 }
+
+if ($isAnyPortClosed) {
+    Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
+    Write-Host ">>ALERT:: IF ANY PORT IS" -ForegroundColor Cyan -NoNewline
+    Write-Host " CLOSED " -ForegroundColor Red -NoNewline
+    Write-Host "NEED TO MAKE SURE YOUR" -ForegroundColor Cyan -NoNewline
+    Write-Host " CLIENT SIDE FIREWALL " -ForegroundColor Yellow -NoNewline
+    Write-Host "IS" -ForegroundColor Cyan -NoNewline
+    Write-Host " OPEN" -ForegroundColor Green
+    Write-Host ">>CHECK" -ForegroundColor Cyan
+    Write-Host ">> - https://learn.microsoft.com/en-us/azure/synapse-analytics/security/synapse-workspace-ip-firewall#connect-to-azure-synapse-from-your-own-network" -ForegroundColor Cyan
+    Write-Host ">> - https://techcommunity.microsoft.com/t5/azure-synapse-analytics-blog/synapse-connectivity-series-part-1-inbound-sql-dw-connections-on/ba-p/3589170" -ForegroundColor Cyan
+    Write-Host ">> - https://techcommunity.microsoft.com/t5/azure-synapse-analytics-blog/synapse-connectivity-series-part-2-inbound-synapse-private/ba-p/3705160" -ForegroundColor Cyan
+    Write-Host ">>" -ForegroundColor Cyan
+    Write-Host ">>CAN ALSO TEST MANUALLY LIKE BELOW" -ForegroundColor Cyan
+    Write-Host ">> NAME RESOLUTION" -ForegroundColor Cyan
+    Write-Host ">> - NSLOOKUP SERVERNAME.sql.azuresynapse.net" -ForegroundColor Cyan
+    Write-Host ">> - NSLOOKUP SERVERNAME-ondemand.sql.azuresynapse.net" -ForegroundColor Cyan
+    Write-Host ">> - NSLOOKUP SERVERNAME.dev.azuresynapse.net" -ForegroundColor Cyan
+    Write-Host ">> PORT IS OPEN" -ForegroundColor Cyan
+    Write-Host ">> - Test-NetConnection -Port XXXX -ComputerName XXXENDPOINTXXX" -ForegroundColor Cyan
+    Write-Host ">> - Test-NetConnection -Port 443  -ComputerName SERVERNAME.dev.azuresynapse.net" -ForegroundColor Cyan
+    Write-Host ">> - Test-NetConnection -Port 1433 -ComputerName SERVERNAME.sql.azuresynapse.net" -ForegroundColor Cyan
+    Write-Host ">> - Test-NetConnection -Port 1433 -ComputerName SERVERNAME-ondemand.sql.azuresynapse.net" -ForegroundColor Cyan
+    Write-Host ">> - Test-NetConnection -Port 1443 -ComputerName SERVERNAME-ondemand.sql.azuresynapse.net" -ForegroundColor Cyan
+    Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
+}
+
+
+
+
 
 #endregion RESULTS - PORTS OPEN
 
-
-
-
 ####################################################################################################################################################
-# TEST API CALLs
+#region TEST API CALLs
 
 Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
 Write-Host "TEST API CALLs" -ForegroundColor Yellow
 Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
 
 ####################################################################################################################################################
-#region TestEndpoints
-
 function TestSQLConnection 
 {
     param (
@@ -693,250 +715,244 @@ function TestSQLConnection
         }
     }
     Catch [Exception]
-{
-    $theError = $_
-
-    Switch($theError.Exception.GetType().FullName)
     {
-        System.Management.Automation.ValidationMetadataException
+        $theError = $_
+
+        Switch($theError.Exception.GetType().FullName)
         {
-            Write-Host "   - ERROR:: ($($theError.Exception.GetType().FullName)):: TEST SQL ($($ServerName)) ENDPOINT" -ForegroundColor Red
-            $theError
-        }        
-        default{
-            Write-Host "   - ERROR:: ($($theError.Exception.GetType().FullName)):: TEST SQL ($($ServerName)) ENDPOINT"  -ForegroundColor Red
-            Write-Host "     - Error: ($(@($theError.Exception.Errors)[0].Number)) / State: ($(@($theError.Exception.Errors)[0].State)) / Message: ($($theError.Exception.Message))" -ForegroundColor Red
-            Write-Host "     - ClientConnectionId: $($theError.Exception.ClientConnectionId)" -ForegroundColor Red
+            System.Management.Automation.ValidationMetadataException
+            {
+                Write-Host "   - ERROR:: ($($theError.Exception.GetType().FullName)):: TEST SQL ($($ServerName)) ENDPOINT" -ForegroundColor Red
+                $theError
+            }        
+            default{
+                Write-Host "   - ERROR:: ($($theError.Exception.GetType().FullName)):: TEST SQL ($($ServerName)) ENDPOINT"  -ForegroundColor Red
+                Write-Host "     - Error: ($(@($theError.Exception.Errors)[0].Number)) / State: ($(@($theError.Exception.Errors)[0].State)) / Message: ($($theError.Exception.Message))" -ForegroundColor Red
+                Write-Host "     - ClientConnectionId: $($theError.Exception.ClientConnectionId)" -ForegroundColor Red
+            }
         }
     }
 }
+
+
+
+
+
+#----------------------------------------------------------------------------------------------------------------------
+# Import Az.Account module
+try {
+    Import-Module Az.Accounts -MinimumVersion 2.2.0 -ErrorAction Stop
+}
+catch {
+    Write-Host "   - ERROR::Import-Module Az.Accounts -MinimumVersion 2.2.0"  -ForegroundColor Red
+    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "   - INSTALL AZ MODULE AND TRY AGAIN OR ELSE CANNOT PROCESS LOGIN TO TEST APIs" -ForegroundColor Yellow
+    Write-Host "     - https://learn.microsoft.com/en-us/powershell/azure/install-azps-windows" -ForegroundColor Yellow
+    Write-Host "     - Install-Module -Name Az -Repository PSGallery -Force" -ForegroundColor Yellow
+    break
+}
+
+#----------------------------------------------------------------------------------------------------------------------
+# Try Connect
+try {
+    Write-Host " > Check your browser for authentication form ..." -ForegroundColor Yellow
+    $null = Connect-AzAccount -Subscription $SubscriptionID -ErrorAction Stop
+}
+catch {
+    Write-Host "   - ERROR::Connect-AzAccount"  -ForegroundColor Red
+    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+}
+
+#----------------------------------------------------------------------------------------------------------------------
+# Get Management token - Control Plane operations
+try {
+    $Management_token = (Get-AzAccessToken -Resource "https://management.azure.com" -ErrorAction Stop).Token
+    $Management_headers = @{ Authorization = "Bearer $Management_token" }   
+}
+catch {
+    Write-Host "   - ERROR::Get-AzAccessToken (Management)"  -ForegroundColor Red
+    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+}
+
+#----------------------------------------------------------------------------------------------------------------------
+# Get Dev Token - Data Plane Operations
+try {
+    $Dev_token = (Get-AzAccessToken -Resource "https://dev.azuresynapse.net" -ErrorAction Stop).Token
+    $Dev_headers = @{ Authorization = "Bearer $Dev_token" }    
+}
+catch {
+    Write-Host "   - ERROR::Get-AzAccessToken (dev synapse)"  -ForegroundColor Red
+    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+}
+
+#----------------------------------------------------------------------------------------------------------------------
+# Get SQL Token - Test SQL Connectivity
+try {
+    $SQL_token = (Get-AzAccessToken -Resource "https://database.windows.net" -ErrorAction Stop).Token
+}
+catch {
+    Write-Host "   - ERROR::Get-AzAccessToken (database)"  -ForegroundColor Red
+    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
 }
 
 
+#----------------------------------------------------------------------------------------------------------------------
+Write-Host "  ----------------------------------------------------------------------------"
+Write-Host "  -Testing API call to management endpoint (management.azure.com) on Port 443" -ForegroundColor DarkGray
 
+$WorkspaceObject = $null
+$SQLEndpoint = $null
+$SQLOndemandEndpoint = $null
+$DevEndpoint = $null
+[bool]$isSynapseWorkspace = $false
 
+try {
+    #https://learn.microsoft.com/en-us/rest/api/synapse/workspaces/list?tabs=HTTP
+    #GET https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Synapse/workspaces?api-version=2021-06-01
 
-if ($TryToConnect_YorN -eq "N") 
-{
-    Write-Host "   - INFO:: NO API REQUESTS MADE AS REQUESTED ON PARAMETER TryToConnect_YorN = N"  -ForegroundColor Green
-}
-else
-{
-    
-    #----------------------------------------------------------------------------------------------------------------------
-    # Import Az.Account module
-    try {
-        Import-Module Az.Accounts -MinimumVersion 2.2.0 -ErrorAction Stop
-    }
-    catch {
-        Write-Host "   - ERROR::Import-Module Az.Accounts -MinimumVersion 2.2.0"  -ForegroundColor Red
-        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-        Write-Host "   - INSTALL AZ MODULE AND TRY AGAIN OR ELSE CANNOT PROCESS LOGIN TO TEST APIs" -ForegroundColor Yellow
-        Write-Host "     - https://learn.microsoft.com/en-us/powershell/azure/install-azps-windows" -ForegroundColor Yellow
-        Write-Host "     - Install-Module -Name Az -Repository PSGallery -Force" -ForegroundColor Yellow
-        break
-    }
+    $uri = "https://management.azure.com/subscriptions/$($SubscriptionID)"
+    $uri += "/providers/Microsoft.Synapse/workspaces?api-version=2021-06-01"
 
-    #----------------------------------------------------------------------------------------------------------------------
-    # Try Connect
-    try {
-        $null = Connect-AzAccount -Subscription $SubscriptionID -ErrorAction Stop
-    }
-    catch {
-        Write-Host "   - ERROR::Connect-AzAccount"  -ForegroundColor Red
-        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-    }
+    Write-Host "   > API CALL ($($uri))" -ForegroundColor Yellow
 
-    #----------------------------------------------------------------------------------------------------------------------
-    # Get Management token - Control Plane operations
-    try {
-        $Management_token = (Get-AzAccessToken -Resource "https://management.azure.com" -ErrorAction Stop).Token
-        $Management_headers = @{ Authorization = "Bearer $Management_token" }   
-    }
-    catch {
-        Write-Host "   - ERROR::Get-AzAccessToken (Management)"  -ForegroundColor Red
-        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-    }
+    $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Management_headers
 
-    #----------------------------------------------------------------------------------------------------------------------
-    # Get Dev Token - Data Plane Operations
-    try {
-        $Dev_token = (Get-AzAccessToken -Resource "https://dev.azuresynapse.net" -ErrorAction Stop).Token
-        $Dev_headers = @{ Authorization = "Bearer $Dev_token" }    
-    }
-    catch {
-        Write-Host "   - ERROR::Get-AzAccessToken (dev synapse)"  -ForegroundColor Red
-        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+    foreach ($WorkspaceObject in $result.value)
+    {
+        if ($WorkspaceObject.name -eq $WorkspaceName)
+        {
+            Write-Host "   - Workspace ($($WorkspaceObject.name)) Found"
+            
+            $SQLOndemandEndpoint = $WorkspaceObject.properties.connectivityEndpoints.sqlOnDemand
+            $DevEndpoint = $WorkspaceObject.properties.connectivityEndpoints.dev    
+
+            if ($WorkspaceObject.properties.extraProperties.WorkspaceType -eq "Normal") {
+                Write-Host "     - This is a Synapse workspace (Not a former SQL DW)"
+                $SQLEndpoint = $WorkspaceObject.properties.connectivityEndpoints.sql
+                $isSynapseWorkspace = $true
+            }
+
+            if ($WorkspaceObject.properties.extraProperties.WorkspaceType -eq "Connected") {
+                Write-Host "     - Former SQL DW + Workspace experience"
+                $SQLEndpoint = "$WorkspaceName.database.windows.net"
+            }
+            break
+        }
     }
 
-    #----------------------------------------------------------------------------------------------------------------------
-    # Get SQL Token - Test SQL Connectivity
-    try {
-        $SQL_token = (Get-AzAccessToken -Resource "https://database.windows.net" -ErrorAction Stop).Token
+    if ($DevEndpoint -ne $null) 
+    {
+        Write-Host "     - SQLEndpoint: ($($SQLEndpoint))"
+        Write-Host "     - SQLOndemandEndpoint: ($($SQLOndemandEndpoint))"
+        Write-Host "     - DevEndpoint: ($($DevEndpoint))"
     }
-    catch {
-        Write-Host "   - ERROR::Get-AzAccessToken (database)"  -ForegroundColor Red
-        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-    }
+    else {
+        Write-Host "    - No Synapse Workspace found" -ForegroundColor Yellow
 
-
-    #----------------------------------------------------------------------------------------------------------------------
-    Write-Host "  ----------------------------------------------------------------------------"
-    Write-Host "  -Testing API call to management endpoint (management.azure.com) on Port 443" -ForegroundColor DarkGray
-
-    $WorkspaceObject = $null
-    $SQLEndpoint = $null
-    $SQLOndemandEndpoint = $null
-    $DevEndpoint = $null
-    [bool]$isSynapseWorkspace = $false
-
-    try {
-        #https://learn.microsoft.com/en-us/rest/api/synapse/workspaces/list?tabs=HTTP
-        #GET https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Synapse/workspaces?api-version=2021-06-01
-
+        #https://learn.microsoft.com/en-us/rest/api/sql/2022-05-01-preview/servers/list?tabs=HTTP
+        #GET https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Sql/servers?api-version=2022-05-01-preview
         $uri = "https://management.azure.com/subscriptions/$($SubscriptionID)"
-        $uri += "/providers/Microsoft.Synapse/workspaces?api-version=2021-06-01"
-    
-        Write-Host "   > API CALL ($($uri))" -ForegroundColor Yellow
-    
-        $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Management_headers
-    
-        foreach ($WorkspaceObject in $result.value)
-        {
-            if ($WorkspaceObject.name -eq $WorkspaceName)
-            {
-                Write-Host "   - Workspace ($($WorkspaceObject.name)) Found"
-                
-                $SQLOndemandEndpoint = $WorkspaceObject.properties.connectivityEndpoints.sqlOnDemand
-                $DevEndpoint = $WorkspaceObject.properties.connectivityEndpoints.dev    
-    
-                if ($WorkspaceObject.properties.extraProperties.WorkspaceType -eq "Normal") {
-                    Write-Host "     - This is a Synapse workspace (Not a former SQL DW)"
-                    $SQLEndpoint = $WorkspaceObject.properties.connectivityEndpoints.sql
-                    $isSynapseWorkspace = $true
-                }
-    
-                if ($WorkspaceObject.properties.extraProperties.WorkspaceType -eq "Connected") {
-                    Write-Host "     - Former SQL DW + Workspace experience"
-                    $SQLEndpoint = "$WorkspaceName.database.windows.net"
-                }
-                break
-            }
-        }
-    
-        if ($DevEndpoint -ne $null) 
-        {
-            Write-Host "     - SQLEndpoint: ($($SQLEndpoint))"
-            Write-Host "     - SQLOndemandEndpoint: ($($SQLOndemandEndpoint))"
-            Write-Host "     - DevEndpoint: ($($DevEndpoint))"
-        }
-        else {
-            Write-Host "    - No Synapse Workspace found" -ForegroundColor Yellow
-    
-            #https://learn.microsoft.com/en-us/rest/api/sql/2022-05-01-preview/servers/list?tabs=HTTP
-            #GET https://management.azure.com/subscriptions/{subscriptionId}/providers/Microsoft.Sql/servers?api-version=2022-05-01-preview
-            $uri = "https://management.azure.com/subscriptions/$($SubscriptionID)"
-            $uri += "/providers/Microsoft.SQL/servers?api-version=2022-05-01-preview"
-    
-            Write-Host "   > API CALL ($($uri))"
-    
-            $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Management_headers
-    
-            foreach ($SQLObject in $result.value)
-            {
-                if ($SQLObject.name -eq $WorkspaceName)
-                {
-                    Write-Host "    - Logical SQL Server ($($SQLObject.name)) Found"            
-    
-                    $SQLEndpoint = "$WorkspaceName.database.windows.net"
-                    Write-Host "      - SQLEndpoint: ($($SQLEndpoint))"
-                    break
-                }
-            }
-        }
-        Write-Host "   - SUCESS:: Connection Management ENDPOINT"  -ForegroundColor Green        
-    }
-    catch {
-        Write-Host "   - ERROR:: TEST Management ENDPOINT" -ForegroundColor Red
-        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-        if ($_.Exception.Response.StatusCode -eq "Forbidden") {
-            Write-Host "   - ERROR:: You do not have permission to reach management.azure.com API" -ForegroundColor Red
-        }
-    
-    }
-
-
-    #----------------------------------------------------------------------------------------------------------------------
-    #Testing SQL DEV API
-    $DevEndpoint = "$($WorkspaceName).dev.azuresynapse.net"
-    Write-Host "  ----------------------------------------------------------------------------"
-    Write-Host "  -Testing SQL DEV API ($($DevEndpoint)) on Port 443" -ForegroundColor DarkGray
-
-    try 
-    {
-        #https://learn.microsoft.com/en-us/rest/api/synapse/data-plane/workspace/get?tabs=HTTP
-        #GET {endpoint}/workspace?api-version=2020-12-01         
-        
-        $uri = "https://$($DevEndpoint)/workspace?api-version=2020-12-01"
+        $uri += "/providers/Microsoft.SQL/servers?api-version=2022-05-01-preview"
 
         Write-Host "   > API CALL ($($uri))"
 
-        $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Dev_headers
-        Write-Host "   - SUCESS:: Connection DEV ENDPOINT"  -ForegroundColor Green
-    }
-    catch {
-        Write-Host "   - ERROR:: TEST DEV ENDPOINT"  -ForegroundColor Red
-        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-        if ($_.Exception.Response.StatusCode -eq "Forbidden") {
-            Write-Host "   - ERROR:: You do not have permission to reach Synapse DEV API" -ForegroundColor Red
+        $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Management_headers
+
+        foreach ($SQLObject in $result.value)
+        {
+            if ($SQLObject.name -eq $WorkspaceName)
+            {
+                Write-Host "    - Logical SQL Server ($($SQLObject.name)) Found"            
+
+                $SQLEndpoint = "$WorkspaceName.database.windows.net"
+                Write-Host "      - SQLEndpoint: ($($SQLEndpoint))"
+                break
+            }
         }
     }
+    Write-Host "   - SUCESS:: Connection Management ENDPOINT"  -ForegroundColor Green        
+}
+catch {
+    Write-Host "   - ERROR:: TEST Management ENDPOINT" -ForegroundColor Red
+    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+    if ($_.Exception.Response.StatusCode -eq "Forbidden") {
+        Write-Host "   - ERROR:: You do not have permission to reach management.azure.com API" -ForegroundColor Red
+    }
+
+}
 
 
-    #----------------------------------------------------------------------------------------------------------------------
-    # Import SQLServer module
-    try {
-        Import-Module SQLServer -ErrorAction Stop
-    }
-    catch {
-        Write-Host "   - ERROR::Import-Module SqlServer"  -ForegroundColor Red
-        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-        Write-Host "   - INSTALL SQL Server MODULE AND TRY AGAIN OR ELSE CANNOT PROCESS TEST SQL LOGIN" -ForegroundColor Yellow
-        Write-Host "     - https://learn.microsoft.com/en-us/sql/powershell/sql-server-powershell" -ForegroundColor Yellow
-        Write-Host "     - Install-Module -Name SqlServer -Repository PSGallery -Force" -ForegroundColor Yellow
-        break
-    }
+#----------------------------------------------------------------------------------------------------------------------
+#Testing SQL DEV API
+$DevEndpoint = "$($WorkspaceName).dev.azuresynapse.net"
+Write-Host "  ----------------------------------------------------------------------------"
+Write-Host "  -Testing SQL DEV API ($($DevEndpoint)) on Port 443" -ForegroundColor DarkGray
+
+try 
+{
+    #https://learn.microsoft.com/en-us/rest/api/synapse/data-plane/workspace/get?tabs=HTTP
+    #GET {endpoint}/workspace?api-version=2020-12-01         
     
-    #----------------------------------------------------------------------------------------------------------------------
-    #Testing SQL connection
-    Write-Host "  ----------------------------------------------------------------------------"
-    Write-Host "  -Testing SQL connection ($($SQLEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
+    $uri = "https://$($DevEndpoint)/workspace?api-version=2020-12-01"
 
-    if ($SQLEndpoint -eq $null)
-    {
-        Write-Host "   - ERROR:: CANNOT TEST SQL connection"  -ForegroundColor Red
-    }
-    else 
-    {
-        TestSQLConnection -ServerName $SQLEndpoint -DatabaseName "master" -SQLConnectionTimeout $SQLConnectionTimeout -SQLQueryTimeout $SQLQueryTimeout -SQL_token $SQL_token
-    }
+    Write-Host "   > API CALL ($($uri))"
 
-    #----------------------------------------------------------------------------------------------------------------------
-    #Testing SQL Ondemand connection
-    $SQLOndemandEndpoint = "$($WorkspaceName)-ondemand.sql.azuresynapse.net"
-    Write-Host "  ----------------------------------------------------------------------------"
-    Write-Host "  -Testing SQL Ondemand connection ($($SQLOndemandEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
-
-    if ($SQLOndemandEndpoint -eq $null) 
-    {
-        Write-Host "   - ERROR:: CANNOT TEST SQL Ondemand connection"  -ForegroundColor Red
-    }
-    else 
-    {
-        TestSQLConnection -ServerName $SQLOndemandEndpoint -DatabaseName "master" -SQLConnectionTimeout $SQLConnectionTimeout -SQLQueryTimeout $SQLQueryTimeout -SQL_token $SQL_token
+    $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Dev_headers
+    Write-Host "   - SUCESS:: Connection DEV ENDPOINT"  -ForegroundColor Green
+}
+catch {
+    Write-Host "   - ERROR:: TEST DEV ENDPOINT"  -ForegroundColor Red
+    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+    if ($_.Exception.Response.StatusCode -eq "Forbidden") {
+        Write-Host "   - ERROR:: You do not have permission to reach Synapse DEV API" -ForegroundColor Red
     }
 }
 
+
+#----------------------------------------------------------------------------------------------------------------------
+# Import SQLServer module
+try {
+    Import-Module SQLServer -ErrorAction Stop
+}
+catch {
+    Write-Host "   - ERROR::Import-Module SqlServer"  -ForegroundColor Red
+    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "   - INSTALL SQL Server MODULE AND TRY AGAIN OR ELSE CANNOT PROCESS TEST SQL LOGIN" -ForegroundColor Yellow
+    Write-Host "     - https://learn.microsoft.com/en-us/sql/powershell/sql-server-powershell" -ForegroundColor Yellow
+    Write-Host "     - Install-Module -Name SqlServer -Repository PSGallery -Force" -ForegroundColor Yellow
+    break
+}
+
+#----------------------------------------------------------------------------------------------------------------------
+#Testing SQL connection
+Write-Host "  ----------------------------------------------------------------------------"
+Write-Host "  -Testing SQL connection ($($SQLEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
+
+if ($SQLEndpoint -eq $null)
+{
+    Write-Host "   - ERROR:: CANNOT TEST SQL connection"  -ForegroundColor Red
+}
+else 
+{
+    TestSQLConnection -ServerName $SQLEndpoint -DatabaseName "master" -SQLConnectionTimeout $SQLConnectionTimeout -SQLQueryTimeout $SQLQueryTimeout -SQL_token $SQL_token
+}
+
+#----------------------------------------------------------------------------------------------------------------------
+#Testing SQL Ondemand connection
+$SQLOndemandEndpoint = "$($WorkspaceName)-ondemand.sql.azuresynapse.net"
+Write-Host "  ----------------------------------------------------------------------------"
+Write-Host "  -Testing SQL Ondemand connection ($($SQLOndemandEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
+
+if ($SQLOndemandEndpoint -eq $null) 
+{
+    Write-Host "   - ERROR:: CANNOT TEST SQL Ondemand connection"  -ForegroundColor Red
+}
+else 
+{
+    TestSQLConnection -ServerName $SQLOndemandEndpoint -DatabaseName "master" -SQLConnectionTimeout $SQLConnectionTimeout -SQLQueryTimeout $SQLQueryTimeout -SQL_token $SQL_token
+}
+
+#endregion TEST API CALLs
 
 ####################################################################################################################################################
 # Just a note
