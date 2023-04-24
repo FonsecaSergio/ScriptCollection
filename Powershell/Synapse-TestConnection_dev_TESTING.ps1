@@ -88,6 +88,7 @@ ADDITIONAL INFO
 
 
 using namespace System.Net
+using namespace Microsoft.ApplicationInsights
 
 [CmdletBinding()]
 param (
@@ -146,6 +147,28 @@ catch {
 [int]$SQLQueryTimeout = 15
 
 #endregion OTHER PARAMETERS / CONSTANTS
+
+
+####################################################################################################################################################
+#Telemetry
+
+function logEvent {
+    param (
+        [String]$Message
+    )
+    try {  
+        $TelemetryClient = [Microsoft.ApplicationInsights.TelemetryClient]::new("4d27873c-cae7-4df0-aad0-d66a7b1cf94b")
+        $TelemetryClient.TrackTrace($Message)
+    }
+    catch {
+        #Do nothing
+
+        #Write-Host "ERROR ($($_.Exception))"
+    }        
+}
+
+logEvent("Execution - Version: " + $VERSION)
+
 
 
 ####################################################################################################################################################
