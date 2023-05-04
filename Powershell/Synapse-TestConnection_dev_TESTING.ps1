@@ -5,7 +5,7 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2023-04-20
+    Last Updated: 2023-05-04
 
     ## Copyright (c) Microsoft Corporation.
     #Licensed under the MIT license.
@@ -107,7 +107,7 @@ Clear-Host
 
 ####################################################################################################################################################
 #LOG VERSIONS
-New-Variable -Name VERSION -Value "2023-04-20" -Option Constant -ErrorAction Ignore
+New-Variable -Name VERSION -Value "2023-05-04" -Option Constant -ErrorAction Ignore
 
 Write-Host ("Current version: " + $VERSION)
 Write-Host ("PS version: " + $psVersionTable.PSVersion)
@@ -157,7 +157,7 @@ function logEvent {
         [String]$Message
     )
     try {  
-        $TelemetryClient = [Microsoft.ApplicationInsights.TelemetryClient]::new("4d27873c-cae7-4df0-aad0-d66a7b1cf94b")
+        $TelemetryClient = [Microsoft.ApplicationInsights.TelemetryClient]::new("d94ff6ec-feda-4cc9-8d0c-0a5e6049b581")
         $TelemetryClient.TrackTrace($Message)
     }
     catch {
