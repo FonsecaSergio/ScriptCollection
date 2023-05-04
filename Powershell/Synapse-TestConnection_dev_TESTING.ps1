@@ -43,6 +43,8 @@
 
 .DESCRIPTION
 ADDITIONAL INFO
+ - ** Anonymous telemetry can be captured **
+
  - You can also check
    - https://docs.microsoft.com/en-us/azure/synapse-analytics/troubleshoot/troubleshoot-synapse-studio-powershell
 
@@ -77,6 +79,7 @@ ADDITIONAL INFO
                  - Make API test calls
                  - Improved Parameter request
                  - Add links and solution to errors
+    - 2023-05-04 - Anonymous telemetry capture
 
 
 #KNOW ISSUES / TO DO
@@ -108,6 +111,7 @@ Clear-Host
 ####################################################################################################################################################
 #LOG VERSIONS
 New-Variable -Name VERSION -Value "2023-05-04" -Option Constant -ErrorAction Ignore
+New-Variable -Name AnonymousRunId -Value ([guid]::NewGuid()).Guid -Option Constant -ErrorAction Ignore
 
 Write-Host ("Current version: " + $VERSION)
 Write-Host ("PS version: " + $psVersionTable.PSVersion)
@@ -154,11 +158,23 @@ catch {
 
 function logEvent {
     param (
-        [String]$Message
+        [String]$Message,
+        [String]$AnonymousRunId = ([guid]::NewGuid()).Guid
     )
-    try {  
-        $TelemetryClient = [Microsoft.ApplicationInsights.TelemetryClient]::new("d94ff6ec-feda-4cc9-8d0c-0a5e6049b581")
-        $TelemetryClient.TrackTrace($Message)
+    try {
+        $InstrumentationKey = "d94ff6ec-feda-4cc9-8d0c-0a5e6049b581"        
+        $body = New-Object PSObject `
+        | Add-Member -PassThru NoteProperty name 'Microsoft.ApplicationInsights.Event' `
+        | Add-Member -PassThru NoteProperty time $([System.dateTime]::UtcNow.ToString('o')) `
+        | Add-Member -PassThru NoteProperty iKey $InstrumentationKey `
+        | Add-Member -PassThru NoteProperty tags (New-Object PSObject | Add-Member -PassThru NoteProperty 'ai.user.id' $AnonymousRunId) `
+        | Add-Member -PassThru NoteProperty data (New-Object PSObject `
+            | Add-Member -PassThru NoteProperty baseType 'EventData' `
+            | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
+                | Add-Member -PassThru NoteProperty ver 2 `
+                | Add-Member -PassThru NoteProperty name $Message));
+        $body = $body | ConvertTo-JSON -depth 5;
+        Invoke-WebRequest -Uri 'https://dc.services.visualstudio.com/v2/track' -ErrorAction SilentlyContinue -Method 'POST' -UseBasicParsing -body $body > $null
     }
     catch {
         #Do nothing
@@ -167,7 +183,8 @@ function logEvent {
     }        
 }
 
-logEvent("Execution - Version: " + $VERSION)
+$Message = "Version: " + $VERSION
+logEvent -Message $Message -AnonymousRunId $AnonymousRunId
 
 
 
