@@ -1,11 +1,12 @@
 #Requires -Version 5
 
+
 <#   
 .NOTES     
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2023-05-04
+    Last Updated: 2023-05-24
 
     ## Copyright (c) Microsoft Corporation.
     #Licensed under the MIT license.
@@ -80,6 +81,9 @@ ADDITIONAL INFO
                  - Improved Parameter request
                  - Add links and solution to errors
     - 2023-05-04 - Anonymous telemetry capture
+    - 2023-05-24 - Improved Browser Proxy detection (Added Proxy script option)
+                 - Adding additional URLs from https://learn.microsoft.com/en-us/azure/synapse-analytics/security/how-to-connect-to-workspace-from-restricted-network#step-6-allow-url-through-firewall
+                 - Small fixes and improvements
 
 
 #KNOW ISSUES / TO DO
@@ -110,7 +114,7 @@ Clear-Host
 
 ####################################################################################################################################################
 #LOG VERSIONS
-New-Variable -Name VERSION -Value "2023-05-04" -Option Constant -ErrorAction Ignore
+New-Variable -Name VERSION -Value "2023-05-24" -Option Constant -ErrorAction Ignore
 New-Variable -Name AnonymousRunId -Value ([guid]::NewGuid()).Guid -Option Constant -ErrorAction Ignore
 
 Write-Host ("Current version: " + $VERSION)
@@ -119,6 +123,7 @@ Write-Host ("PS OS version: " + $psVersionTable.OS)
 Write-Host ("System.Environment OS version: " + [System.Environment]::OSVersion.Platform)
 Write-Host ("WorkspaceName: " + $WorkspaceName)
 Write-Host ("SubscriptionID: " + $SubscriptionID)
+
 
 
 ####################################################################################################################################################
@@ -239,7 +244,11 @@ Class EndpointTest
         {
             $DNSResults = (Resolve-DnsName -Name $this.Endpoint.Name -DnsOnly -Type A -QuickTimeout -ErrorAction Stop)
             $this.CXResolvedIP = @($DNSResults.IP4Address)[0]
-            $this.CXResolvedCNAME = $DNSResults.NameHost[$DNSResults.NameHost.Count - 1]
+            if ($DNSResults.NameHost.Count -gt 0) 
+            {
+                $this.CXResolvedCNAME = $DNSResults.NameHost[$DNSResults.NameHost.Count - 1]
+            }
+            
         }
         catch 
         {
@@ -255,7 +264,13 @@ Class EndpointTest
         {
             $DNSResults = (Resolve-DnsName -Name $this.Endpoint.Name -DnsOnly -Type A -QuickTimeout -Server $DNSServer  -ErrorAction Stop)
             $this.PublicIP = @($DNSResults.IP4Address)[0]
-            $this.PublicCNAME = $DNSResults.NameHost[$DNSResults.NameHost.Count - 1]
+
+            if ($DNSResults.NameHost.Count -gt 0) 
+            {
+                $this.PublicCNAME = $DNSResults.NameHost[$DNSResults.NameHost.Count - 1]
+            }
+
+            
         }
         catch 
         {
@@ -273,7 +288,7 @@ Class EndpointTest
             try {
                 $tcpClient = New-Object System.Net.Sockets.TcpClient
 
-                if($this.CXResolvedIP -ne $null) 
+                if($this.CXResolvedIP -ne $null -and $this.CXResolvedIP -ne "") 
                 {
                     $portOpened = $false
 
@@ -353,10 +368,20 @@ Class EndpointTest
             else 
             {
                 if ($this.CXResolvedIP -eq $this.PublicIP) 
-                { Write-Host "      - INFO:: That is not an issue :: CX DNS SERVER AND PUBLIC DNS ARE SAME. Just a notice that they are currently EQUAL" -ForegroundColor Green }
-                else { Write-Host "      - INFO:: That is not an issue :: CX DNS SERVER AND PUBLIC DNS ARE NOT SAME. Just a notice that they are currently DIFFERENT" -ForegroundColor Yellow }
+                { 
+                    #Write-Host "      - INFO:: That is not an issue :: CX DNS SERVER AND PUBLIC DNS ARE SAME. Just a notice that they are currently EQUAL" -ForegroundColor Green 
+                }
+                else 
+                { 
+                    Write-Host "      - INFO:: That is not an issue :: CX DNS SERVER AND PUBLIC DNS ARE NOT SAME. Just a notice that they are currently DIFFERENT" -ForegroundColor Yellow 
+                }
     
-                if ($this.CXResolvedCNAME -like "*.cloudapp.*" -or $this.CXResolvedCNAME -like "*.control.*" -or $this.CXResolvedCNAME -like "*.trafficmanager.net*" -or $this.CXResolvedCNAME -like "*.prd.aadg.akadns.net" -or $this.CXResolvedCNAME -like "*.dscg.akamaiedge.net") 
+                if (
+                    $this.CXResolvedCNAME -like "*.cloudapp.*" -or `
+                    $this.CXResolvedCNAME -like "*.control.*" -or `
+                    $this.CXResolvedCNAME -like "*.trafficmanager.net*" -or `
+                    $this.CXResolvedCNAME -like "*msedge.net" -or `
+                    $this.CXResolvedCNAME -like "*.akadns.net") 
                 { Write-Host "      - INFO:: CX USING PUBLIC ENDPOINT" -ForegroundColor Cyan }
                 elseif ($this.CXResolvedCNAME -like "*.privatelink.*") 
                 { Write-Host "      - INFO:: CX USING PRIVATE ENDPOINT" -ForegroundColor Yellow }                   
@@ -433,23 +458,12 @@ $AzureManagementEndpoint = [Endpoint]::new(
 )
 $EndpointTestList.Add([EndpointTest]::new($AzureManagementEndpoint))
 
-$AADEndpoint1 = [Endpoint]::new(
-    "login.windows.net",
-    @([Port]::new(443))
-)
-$EndpointTestList.Add([EndpointTest]::new($AADEndpoint1))
-
-$AADEndpoint2 = [Endpoint]::new(
-    "login.microsoftonline.com",
-    @([Port]::new(443))
-)
-$EndpointTestList.Add([EndpointTest]::new($AADEndpoint2))
-
-$AADEndpoint3 = [Endpoint]::new(
-    "secure.aadcdn.microsoftonline-p.com",
-    @([Port]::new(443))
-)
-$EndpointTestList.Add([EndpointTest]::new($AADEndpoint3))
+$EndpointTestList.Add([Endpoint]::new("login.windows.net",@([Port]::new(443))))
+$EndpointTestList.Add([Endpoint]::new("login.microsoftonline.com",@([Port]::new(443))))
+$EndpointTestList.Add([Endpoint]::new("aadcdn.msauth.net",@([Port]::new(443))))
+#$EndpointTestList.Add([Endpoint]::new("msauth.net",@([Port]::new(443))))
+#$EndpointTestList.Add([Endpoint]::new("msftauth.net",@([Port]::new(443))))
+$EndpointTestList.Add([Endpoint]::new("graph.microsoft.com",@([Port]::new(443))))
 
 #endregion Endpoints to be tested
 
@@ -603,18 +617,28 @@ Write-Host "  Computer Internet Settings - LOOK FOR PROXY SETTINGS"
 try {
     $IESettings = Get-ItemProperty -Path "Registry::HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" -ErrorAction Stop
 
-    if ($IESettings.ProxyEnable -eq 0) {
+    if (($IESettings.ProxyEnable -eq 0) -and ($null -eq $IESettings.AutoConfigURL)) 
+    {
         Write-Host "   - INFO:: NO INTERNET PROXY ON SERVER / BROWSER" -ForegroundColor Green
     }
-    else {
+
+    if ($IESettings.ProxyEnable -eq 1)
+    {
         Write-Host "   - WARN:: PROXY ENABLED ON SERVER $($IESettings.ProxyServer)" -ForegroundColor Red
         Write-Host "   - WARN:: PROXY EXCEPTIONS $($IESettings.ProxyOverride)" -ForegroundColor Red
     }    
+
+    if ($null -ne $IESettings.AutoConfigURL)
+    {
+        Write-Host "   - WARN:: PROXY SCRIPT $($IESettings.AutoConfigURL)" -ForegroundColor Red
+    }    
+
 }
 catch {
     Write-Host "   - ERROR:: Not able to check Proxy settings" -ForegroundColor Red
     Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
 }
+
 
 
 ####################################################################################################################################################
