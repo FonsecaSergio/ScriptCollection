@@ -573,10 +573,7 @@ if ($HostsFileEntries.Count -gt 0) {
         if (
             $HostsFileEntry.HOST.Contains($WorkspaceName) -or `
             $HostsFileEntry.HOST.Contains($SynapseStudioEndpoint.Name) -or `
-            $HostsFileEntry.HOST.Contains($AzureManagementEndpoint.Name) -or `
-            $HostsFileEntry.HOST.Contains($AADEndpoint1.Name) -or `
-            $HostsFileEntry.HOST.Contains($AADEndpoint2.Name) -or `
-            $HostsFileEntry.HOST.Contains($AADEndpoint3.Name)`
+            $HostsFileEntry.HOST.Contains($AzureManagementEndpoint.Name) `
         ) {
             Write-Host "   - IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]" -ForegroundColor Red    
         }
@@ -614,69 +611,77 @@ foreach ($DnsCxServerAddress in $DnsCxServerAddresses)
 Write-Host "  ----------------------------------------------------------------------------"
 Write-Host "  Computer Internet Settings - LOOK FOR PROXY SETTINGS"
 
-try {
-    $IESettings = Get-ItemProperty -Path "Registry::HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" -ErrorAction Stop
+function Get-BrowserProxySettings 
+{
+    try {
+        $IESettings = Get-ItemProperty -Path "Registry::HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings" -ErrorAction Stop
 
-    if (($IESettings.ProxyEnable -eq 0) -and ($null -eq $IESettings.AutoConfigURL)) 
-    {
-        Write-Host "   - INFO:: NO INTERNET PROXY ON SERVER / BROWSER" -ForegroundColor Green
+        if (($IESettings.ProxyEnable -eq 0) -and ($null -eq $IESettings.AutoConfigURL)) 
+        {
+            Write-Host "   - INFO:: NO INTERNET PROXY ON SERVER / BROWSER" -ForegroundColor Green
+        }
+
+        if ($IESettings.ProxyEnable -eq 1)
+        {
+            Write-Host "   - WARN:: PROXY ENABLED ON SERVER $($IESettings.ProxyServer)" -ForegroundColor Red
+            Write-Host "   - WARN:: PROXY EXCEPTIONS $($IESettings.ProxyOverride)" -ForegroundColor Red
+        }    
+
+        if ($null -ne $IESettings.AutoConfigURL)
+        {
+            Write-Host "   - WARN:: PROXY SCRIPT $($IESettings.AutoConfigURL)" -ForegroundColor Red
+        }    
+
     }
-
-    if ($IESettings.ProxyEnable -eq 1)
-    {
-        Write-Host "   - WARN:: PROXY ENABLED ON SERVER $($IESettings.ProxyServer)" -ForegroundColor Red
-        Write-Host "   - WARN:: PROXY EXCEPTIONS $($IESettings.ProxyOverride)" -ForegroundColor Red
-    }    
-
-    if ($null -ne $IESettings.AutoConfigURL)
-    {
-        Write-Host "   - WARN:: PROXY SCRIPT $($IESettings.AutoConfigURL)" -ForegroundColor Red
-    }    
-
-}
-catch {
-    Write-Host "   - ERROR:: Not able to check Proxy settings" -ForegroundColor Red
-    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+    catch {
+        Write-Host "   - ERROR:: Not able to check Proxy settings" -ForegroundColor Red
+        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+    }
 }
 
-
+Get-BrowserProxySettings
 
 ####################################################################################################################################################
-try {
-    $ProxyEvents = Get-EventLog `
-        -LogName "Integration Runtime" `
-        -InstanceId "26" `
-        -Message "Http Proxy is set to*" `
-        -Newest 15 `
-        -ErrorAction Stop
-
-    Write-Host "  ----------------------------------------------------------------------------"
-    Write-Host "  SHIR Proxy Settings" 
-        $ProxyEvents | Select TimeGenerated, Message
-
-
-}
-Catch [Exception]
+function Get-SHIRProxySettings 
 {
-    #DO NOTHING, BELOW JUST DEBUG
+    try {
+        $ProxyEvents = Get-EventLog `
+            -LogName "Integration Runtime" `
+            -InstanceId "26" `
+            -Message "Http Proxy is set to*" `
+            -Newest 15 `
+            -ErrorAction Stop
 
-    <#
-    $theError = $_
-    
-    Switch($theError.Exception.GetType().FullName)
-    {
-        System.Management.Automation.CmdletInvocationException
-        {
-            Write-Host "   - WARN:: NOT A PROBLEM IF NOT Self Hosted IR Machine" -ForegroundColor Yellow
-            Write-Host "     - $($theError)" -ForegroundColor DarkGray
-        }        
-        default{
-            Write-Host "   - ERROR:: ($($theError.Exception.GetType().FullName)) - NOT A PROBLEM IF NOT Self Hosted IR Machine" -ForegroundColor Yellow
-            Write-Host "     - $($theError)" -ForegroundColor Yellow      
-        }
+        Write-Host "  ----------------------------------------------------------------------------"
+        Write-Host "  SHIR Proxy Settings" 
+            $ProxyEvents | Select TimeGenerated, Message
+
+
     }
-    #>
+    Catch [Exception]
+    {
+        #DO NOTHING, BELOW JUST DEBUG
+
+        <#
+        $theError = $_
+        
+        Switch($theError.Exception.GetType().FullName)
+        {
+            System.Management.Automation.CmdletInvocationException
+            {
+                Write-Host "   - WARN:: NOT A PROBLEM IF NOT Self Hosted IR Machine" -ForegroundColor Yellow
+                Write-Host "     - $($theError)" -ForegroundColor DarkGray
+            }        
+            default{
+                Write-Host "   - ERROR:: ($($theError.Exception.GetType().FullName)) - NOT A PROBLEM IF NOT Self Hosted IR Machine" -ForegroundColor Yellow
+                Write-Host "     - $($theError)" -ForegroundColor Yellow      
+            }
+        }
+        #>
+    }
 }
+
+Get-SHIRProxySettings
 
 Write-Host "  ----------------------------------------------------------------------------"
 #endregion RESULTS - PROXY SETTINGS
@@ -817,7 +822,7 @@ catch {
 }
 
 #----------------------------------------------------------------------------------------------------------------------
-# Try Connect
+# Try Connect AAD
 try {
     Write-Host " > Check your browser for authentication form ..." -ForegroundColor Yellow
     $null = Connect-AzAccount -Subscription $SubscriptionID -ErrorAction Stop
