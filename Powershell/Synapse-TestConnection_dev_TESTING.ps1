@@ -171,6 +171,7 @@ New-Variable -Name TestPortConnectionTimeoutMs -Value 2000 -Option Constant -Err
 New-Variable -Name SQLConnectionTimeout -Value 15 -Option Constant -ErrorAction Ignore
 New-Variable -Name SQLQueryTimeout -Value 15 -Option Constant -ErrorAction Ignore
 New-Variable -Name HostsFile -Value "$env:SystemDrive\Windows\System32\Drivers\etc\hosts" -Option Constant -ErrorAction Ignore
+New-Variable -Name DebugConnectToEndpoints -Value $true -Option Constant -ErrorAction Ignore #Used for debug. Will not make real connection test to endpoints
 
 #endregion OTHER PARAMETERS / CONSTANTS
 
@@ -350,7 +351,7 @@ Class EndpointTest
             else 
             {                    
                 # If the IP address is not valid, set the result to "NOT VALID IP - NAME NOT RESOLVED"
-                Write-Host " -INFO:: NOT Testing Port / IP NOT VALID - $($this.Endpoint.Name) / IP($($this.CXResolvedIP)):PORT($($Port.Port))" -ForegroundColor Yellow
+                #Write-Host " -INFO:: NOT Testing Port / IP NOT VALID - $($this.Endpoint.Name) / IP($($this.CXResolvedIP)):PORT($($Port.Port))" -ForegroundColor Yellow
                 $Port.Result = "NOT VALID IP - NAME NOT RESOLVED"
             }
 
@@ -405,7 +406,7 @@ Class EndpointTest
         if ($null -eq $this.PublicIP) 
         { 
             # If the public IP is null, log a message to the console
-            Write-Host "      - INFO:: PUBLIC NAME RESOLUTION DIDN'T WORK - DOES NOT MEAN A PROBLEM - Just could not reach Public DNS ($($DNSPublic)) to compare" -ForegroundColor Yellow 
+            #Write-Host "      - INFO:: PUBLIC NAME RESOLUTION DIDN'T WORK - DOES NOT MEAN A PROBLEM - Just could not reach Public DNS ($($DNSPublic)) to compare" -ForegroundColor Yellow 
         }
 
         if ($_HaveHostsFileEntry)
@@ -516,7 +517,6 @@ foreach ($Endpoint in $Endpoints.Keys)
 Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
 Write-Host "COLLECTING DATA" -ForegroundColor Yellow
 Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
-Write-Host "..."
 
 #----------------------------------------------------------------------------------------------------------------------
 <#
@@ -609,7 +609,7 @@ function Get-DnsCxServerAddresses {
 
 $DnsCxServerAddresses = Get-DnsCxServerAddresses
 
-Get-DnsClientServerAddress | Where-Object ServerAddresses
+#Get-DnsClientServerAddress | Where-Object ServerAddresses
 
 #----------------------------------------------------------------------------------------------------------------------
 # Test name resolution against CX DNS and Public DNS
@@ -649,16 +649,22 @@ Write-Host "  HOSTS FILE [$($HostsFile)]"
 if ($HostsFileEntries.Count -gt 0) {
     foreach ($HostsFileEntry in $HostsFileEntries)
     {
-        if (
-            $HostsFileEntry.HOST.Contains($WorkspaceName) -or `
-            $HostsFileEntry.HOST.Contains($SynapseStudioEndpoint.Name) -or `
-            $HostsFileEntry.HOST.Contains($AzureManagementEndpoint.Name) `
-        ) {
-            Write-Host "   - IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]" -ForegroundColor Red    
+        $isFoundOnList = $false
+
+        #Write-Host "HostsFileEntry = $($HostsFileEntry)"
+        foreach ($EndpointTest in $EndpointTestList)
+        {
+            #Write-Host "EndpointTest = $($EndpointTest.Endpoint.Name)"
+            
+            if ($HostsFileEntry.HOST.Contains($EndpointTest.Endpoint.Name)) {
+                Write-Host "   - IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]" -ForegroundColor Red    
+                $isFoundOnList = $true
+            }
         }
-        else {
+        if ($isFoundOnList -eq $false)
+        {
             Write-Host "   - IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]"
-        }    
+        }
     }     
 }
 else {
@@ -683,6 +689,9 @@ foreach ($DnsCxServerAddress in $DnsCxServerAddresses)
     } 
        
 }
+Write-Host "  ----------------------------------------------------------------------------"
+Get-DnsClientServerAddress | Where-Object ServerAddresses
+Write-Host "  ----------------------------------------------------------------------------"
 #endregion RESULTS - DNS SERVERS
 
 ####################################################################################################################################################
@@ -850,331 +859,332 @@ if ($isAnyPortClosed) {
 }
 
 
-
-
-
 #endregion RESULTS - PORTS OPEN
 
-####################################################################################################################################################
-#region TEST API CALLs
 
-Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
-Write-Host "TEST API CALLs" -ForegroundColor Yellow
-Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
-
-####################################################################################################################################################
-<#
-.SYNOPSIS
-Tests a SQL connection to a specified server.
-
-.DESCRIPTION
-Tests a SQL connection to a specified server using either a SQL token or a SQL user and password.
-
-.PARAMETER ServerName
-The name of the SQL server to test the connection to.
-
-.PARAMETER DatabaseName
-The name of the database to connect to. Default is "master".
-
-.PARAMETER SQL_token
-The SQL token to use for authentication. If not provided, a SQL user and password will be used.
-
-.PARAMETER SQL_user
-The SQL user to use for authentication. Default is "TestUser".
-
-.PARAMETER SQL_password
-The SQL password to use for authentication. Default is "TestUser123".
-
-.PARAMETER SQLConnectionTimeout
-The timeout for the SQL connection in seconds. Default is 15.
-
-.PARAMETER SQLQueryTimeout
-The timeout for the SQL query in seconds. Default is 15.
-
-.EXAMPLE
-TestSQLConnection -ServerName "localhost" -DatabaseName "master" -SQL_user "myuser" -SQL_password "mypassword"
-
-.NOTES
-#>
-function TestSQLConnection 
+if ($DebugConnectToEndpoints)
 {
-    param (
-        [string]$ServerName,
-        [string]$DatabaseName="master",
-        [string]$SQL_token=$null,
-        [string]$SQL_user="TestUser",
-        [string]$SQL_password="TestUser123",
-        [int]$SQLConnectionTimeout = 15,
-        [int]$SQLQueryTimeout = 15
-    )
-    
-    $Query = "select TOP 1 connection_id, GETUTCDATE() as DATE from sys.dm_exec_connections where session_id = @@SPID"
-    
-    Try
+    ####################################################################################################################################################
+    #region TEST API CALLs
+
+    Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
+    Write-Host "TEST API CALLs" -ForegroundColor Yellow
+    Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
+
+    ####################################################################################################################################################
+    <#
+    .SYNOPSIS
+    Tests a SQL connection to a specified server.
+
+    .DESCRIPTION
+    Tests a SQL connection to a specified server using either a SQL token or a SQL user and password.
+
+    .PARAMETER ServerName
+    The name of the SQL server to test the connection to.
+
+    .PARAMETER DatabaseName
+    The name of the database to connect to. Default is "master".
+
+    .PARAMETER SQL_token
+    The SQL token to use for authentication. If not provided, a SQL user and password will be used.
+
+    .PARAMETER SQL_user
+    The SQL user to use for authentication. Default is "TestUser".
+
+    .PARAMETER SQL_password
+    The SQL password to use for authentication. Default is "TestUser123".
+
+    .PARAMETER SQLConnectionTimeout
+    The timeout for the SQL connection in seconds. Default is 15.
+
+    .PARAMETER SQLQueryTimeout
+    The timeout for the SQL query in seconds. Default is 15.
+
+    .EXAMPLE
+    TestSQLConnection -ServerName "localhost" -DatabaseName "master" -SQL_user "myuser" -SQL_password "mypassword"
+
+    .NOTES
+    #>
+    function TestSQLConnection 
     {
-        if ( ($null -eq $SQL_token) -or ("" -eq $SQL_token))
-        {
-            Write-Host "   - WARN:: SQL TOKEN NOT VALID. TESTING CONNECTION WITH FAKE SQL USER + PASSWORD, it will fail but we can check if can reach server"  -ForegroundColor Yellow
-            $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseName -Username $SQL_user -Password $SQL_password -Query $Query -ConnectionTimeout $SQLConnectionTimeout -QueryTimeout $SQLQueryTimeout -ErrorAction Stop
-            Write-Host "   - SUCESS:: Connection connection_id($($result.connection_id)) / UTC date($($result.DATE))" -ForegroundColor Green
-        }
-        else
-        {
-            $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseName -AccessToken $SQL_token -Query $Query -ConnectionTimeout $SQLConnectionTimeout -QueryTimeout $SQLQueryTimeout -ErrorAction Stop
-            Write-Host "   - SUCESS:: Connection connection_id($($result.connection_id)) / UTC date($($result.DATE))" -ForegroundColor Green
-        }
-    }
-    Catch [Exception]
-    {
-        $theError = $_
-
-        Switch($theError.Exception.GetType().FullName)
-        {
-            System.Management.Automation.ValidationMetadataException
-            {
-                Write-Host "   - ERROR:: ($($theError.Exception.GetType().FullName)):: TEST SQL ($($ServerName)) ENDPOINT" -ForegroundColor Red
-                $theError
-            }        
-            default{
-                Write-Host "   - ERROR:: ($($theError.Exception.GetType().FullName)):: TEST SQL ($($ServerName)) ENDPOINT"  -ForegroundColor Red
-                Write-Host "     - Error: ($(@($theError.Exception.Errors)[0].Number)) / State: ($(@($theError.Exception.Errors)[0].State)) / Message: ($($theError.Exception.Message))" -ForegroundColor Red
-                Write-Host "     - ClientConnectionId: $($theError.Exception.ClientConnectionId)" -ForegroundColor Red
-                #Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
-                #Write-Host ">> - SQL ERROR MEANING" -ForegroundColor Cyan
-                #Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan   
-            }
-        }
-    }
-}
-
-
-
-
-
-#----------------------------------------------------------------------------------------------------------------------
-# Import Az.Account module
-try {
-    # Attempt to import the Az.Accounts module with a minimum version of 2.2.0
-    Import-Module Az.Accounts -MinimumVersion 2.2.0 -ErrorAction Stop
-}
-catch {
-    # If the import fails, display an error message with the exception message
-    Write-Host "   - ERROR::Import-Module Az.Accounts -MinimumVersion 2.2.0"  -ForegroundColor Red
-    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "   - INSTALL AZ MODULE AND TRY AGAIN OR ELSE CANNOT PROCESS LOGIN TO TEST APIs" -ForegroundColor Yellow
-    Write-Host "     - https://learn.microsoft.com/en-us/powershell/azure/install-azps-windows" -ForegroundColor Yellow
-    Write-Host "     - Install-Module -Name Az -Repository PSGallery -Force" -ForegroundColor Yellow
-
-    # Break out of the try-catch block
-    break
-}
-
-#----------------------------------------------------------------------------------------------------------------------
-# Try Connect AAD
-try {
-    Write-Host " > Check your browser for authentication form ..." -ForegroundColor Yellow
-
-    # Attempt to connect to the Azure account using the specified subscription ID
-    $null = Connect-AzAccount -Subscription $SubscriptionID -ErrorAction Stop
-}
-catch {
-    # If the connection attempt fails, display an error message with the exception message
-    Write-Host "   - ERROR::Connect-AzAccount"  -ForegroundColor Red
-    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-}
-
-#----------------------------------------------------------------------------------------------------------------------
-# Get Management token - Control Plane operations
-try {
-    $Management_token = (Get-AzAccessToken -Resource "https://management.azure.com" -ErrorAction Stop).Token
-    $Management_headers = @{ Authorization = "Bearer $Management_token" }   
-}
-catch {
-    # If the access token retrieval fails, display an error message with the exception message
-    Write-Host "   - ERROR::Get-AzAccessToken (Management)"  -ForegroundColor Red
-    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-}
-#----------------------------------------------------------------------------------------------------------------------
-# Get Dev Token - Data Plane Operations
-try {
-    $Dev_token = (Get-AzAccessToken -Resource "https://dev.azuresynapse.net" -ErrorAction Stop).Token
-    $Dev_headers = @{ Authorization = "Bearer $Dev_token" }    
-}
-catch {
-    Write-Host "   - ERROR::Get-AzAccessToken (dev synapse)"  -ForegroundColor Red
-    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-}
-
-#----------------------------------------------------------------------------------------------------------------------
-# Get SQL Token - Test SQL Connectivity
-try {
-    $SQL_token = (Get-AzAccessToken -Resource "https://database.windows.net" -ErrorAction Stop).Token
-}
-catch {
-    Write-Host "   - ERROR::Get-AzAccessToken (database)"  -ForegroundColor Red
-    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-}
-
-
-#----------------------------------------------------------------------------------------------------------------------
-Write-Host "  ----------------------------------------------------------------------------"
-Write-Host "  -Testing API call to management endpoint (management.azure.com) on Port 443" -ForegroundColor DarkGray
-
-$WorkspaceObject = $null
-$SQLEndpoint = $null
-$SQLOndemandEndpoint = $null
-$DevEndpoint = $null
-[bool]$isSynapseWorkspace = $false
-
-try {
-    # Construct the URI for the Synapse Workspace API call
-    $uri = "https://management.azure.com/subscriptions/$($SubscriptionID)"
-    $uri += "/providers/Microsoft.Synapse/workspaces?api-version=2021-06-01"
-
-    # Make the API call to retrieve the Synapse Workspace object
-    $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Management_headers
-
-    # Loop through each workspace object returned by the API call
-    foreach ($WorkspaceObject in $result.value)
-    {
-        # Check if the current workspace object matches the specified workspace name
-        if ($WorkspaceObject.name -eq $WorkspaceName)
-        {
-            $SQLOndemandEndpoint = $WorkspaceObject.properties.connectivityEndpoints.sqlOnDemand
-            $DevEndpoint = $WorkspaceObject.properties.connectivityEndpoints.dev    
-
-            # If the workspace is a Synapse workspace, set the appropriate endpoints
-            if ($WorkspaceObject.properties.extraProperties.WorkspaceType -eq "Normal") {
-                $SQLEndpoint = $WorkspaceObject.properties.connectivityEndpoints.sql
-                $isSynapseWorkspace = $true
-            }
-
-            # If the workspace is a former SQL DW, set the appropriate endpoint
-            if ($WorkspaceObject.properties.extraProperties.WorkspaceType -eq "Connected") {
-                $SQLEndpoint = "$WorkspaceName.database.windows.net"
-            }
-            
-            break
-        }
-    }
-
-    # If a DevEndpoint was found, output the endpoints
-    if ($null -ne $DevEndpoint) 
-    {
-        Write-Host "     - SQLEndpoint: ($($SQLEndpoint))"
-        Write-Host "     - SQLOndemandEndpoint: ($($SQLOndemandEndpoint))"
-        Write-Host "     - DevEndpoint: ($($DevEndpoint))"
-    }
-    else #former SQL DW
-    {
+        param (
+            [string]$ServerName,
+            [string]$DatabaseName="master",
+            [string]$SQL_token=$null,
+            [string]$SQL_user="TestUser",
+            [string]$SQL_password="TestUser123",
+            [int]$SQLConnectionTimeout = 15,
+            [int]$SQLQueryTimeout = 15
+        )
         
-        $uri = "https://management.azure.com/subscriptions/$($SubscriptionID)"
-        $uri += "/providers/Microsoft.SQL/servers?api-version=2022-05-01-preview"
+        $Query = "select TOP 1 connection_id, GETUTCDATE() as DATE from sys.dm_exec_connections where session_id = @@SPID"
+        
+        Try
+        {
+            if ( ($null -eq $SQL_token) -or ("" -eq $SQL_token))
+            {
+                Write-Host "   - WARN:: SQL TOKEN NOT VALID. TESTING CONNECTION WITH FAKE SQL USER + PASSWORD, it will fail but we can check if can reach server"  -ForegroundColor Yellow
+                $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseName -Username $SQL_user -Password $SQL_password -Query $Query -ConnectionTimeout $SQLConnectionTimeout -QueryTimeout $SQLQueryTimeout -ErrorAction Stop
+                Write-Host "   - SUCESS:: Connection connection_id($($result.connection_id)) / UTC date($($result.DATE))" -ForegroundColor Green
+            }
+            else
+            {
+                $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseName -AccessToken $SQL_token -Query $Query -ConnectionTimeout $SQLConnectionTimeout -QueryTimeout $SQLQueryTimeout -ErrorAction Stop
+                Write-Host "   - SUCESS:: Connection connection_id($($result.connection_id)) / UTC date($($result.DATE))" -ForegroundColor Green
+            }
+        }
+        Catch [Exception]
+        {
+            $theError = $_
 
+            Switch($theError.Exception.GetType().FullName)
+            {
+                System.Management.Automation.ValidationMetadataException
+                {
+                    Write-Host "   - ERROR:: ($($theError.Exception.GetType().FullName)):: TEST SQL ($($ServerName)) ENDPOINT" -ForegroundColor Red
+                    $theError
+                }        
+                default{
+                    Write-Host "   - ERROR:: ($($theError.Exception.GetType().FullName)):: TEST SQL ($($ServerName)) ENDPOINT"  -ForegroundColor Red
+                    Write-Host "     - Error: ($(@($theError.Exception.Errors)[0].Number)) / State: ($(@($theError.Exception.Errors)[0].State)) / Message: ($($theError.Exception.Message))" -ForegroundColor Red
+                    Write-Host "     - ClientConnectionId: $($theError.Exception.ClientConnectionId)" -ForegroundColor Red
+                    #Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
+                    #Write-Host ">> - SQL ERROR MEANING" -ForegroundColor Cyan
+                    #Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan   
+                }
+            }
+        }
+    }
+
+
+
+
+
+    #----------------------------------------------------------------------------------------------------------------------
+    # Import Az.Account module
+    try {
+        # Attempt to import the Az.Accounts module with a minimum version of 2.2.0
+        Import-Module Az.Accounts -MinimumVersion 2.2.0 -ErrorAction Stop
+    }
+    catch {
+        # If the import fails, display an error message with the exception message
+        Write-Host "   - ERROR::Import-Module Az.Accounts -MinimumVersion 2.2.0"  -ForegroundColor Red
+        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "   - INSTALL AZ MODULE AND TRY AGAIN OR ELSE CANNOT PROCESS LOGIN TO TEST APIs" -ForegroundColor Yellow
+        Write-Host "     - https://learn.microsoft.com/en-us/powershell/azure/install-azps-windows" -ForegroundColor Yellow
+        Write-Host "     - Install-Module -Name Az -Repository PSGallery -Force" -ForegroundColor Yellow
+
+        # Break out of the try-catch block
+        break
+    }
+
+    #----------------------------------------------------------------------------------------------------------------------
+    # Try Connect AAD
+    try {
+        Write-Host " > Check your browser for authentication form ..." -ForegroundColor Yellow
+
+        # Attempt to connect to the Azure account using the specified subscription ID
+        $null = Connect-AzAccount -Subscription $SubscriptionID -ErrorAction Stop
+    }
+    catch {
+        # If the connection attempt fails, display an error message with the exception message
+        Write-Host "   - ERROR::Connect-AzAccount"  -ForegroundColor Red
+        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+    }
+
+    #----------------------------------------------------------------------------------------------------------------------
+    # Get Management token - Control Plane operations
+    try {
+        $Management_token = (Get-AzAccessToken -Resource "https://management.azure.com" -ErrorAction Stop).Token
+        $Management_headers = @{ Authorization = "Bearer $Management_token" }   
+    }
+    catch {
+        # If the access token retrieval fails, display an error message with the exception message
+        Write-Host "   - ERROR::Get-AzAccessToken (Management)"  -ForegroundColor Red
+        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+    }
+    #----------------------------------------------------------------------------------------------------------------------
+    # Get Dev Token - Data Plane Operations
+    try {
+        $Dev_token = (Get-AzAccessToken -Resource "https://dev.azuresynapse.net" -ErrorAction Stop).Token
+        $Dev_headers = @{ Authorization = "Bearer $Dev_token" }    
+    }
+    catch {
+        Write-Host "   - ERROR::Get-AzAccessToken (dev synapse)"  -ForegroundColor Red
+        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+    }
+
+    #----------------------------------------------------------------------------------------------------------------------
+    # Get SQL Token - Test SQL Connectivity
+    try {
+        $SQL_token = (Get-AzAccessToken -Resource "https://database.windows.net" -ErrorAction Stop).Token
+    }
+    catch {
+        Write-Host "   - ERROR::Get-AzAccessToken (database)"  -ForegroundColor Red
+        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+    }
+
+
+    #----------------------------------------------------------------------------------------------------------------------
+    Write-Host "  ----------------------------------------------------------------------------"
+    Write-Host "  -Testing API call to management endpoint (management.azure.com) on Port 443" -ForegroundColor DarkGray
+
+    $WorkspaceObject = $null
+    $SQLEndpoint = $null
+    $SQLOndemandEndpoint = $null
+    $DevEndpoint = $null
+    [bool]$isSynapseWorkspace = $false
+
+    try {
+        # Construct the URI for the Synapse Workspace API call
+        $uri = "https://management.azure.com/subscriptions/$($SubscriptionID)"
+        $uri += "/providers/Microsoft.Synapse/workspaces?api-version=2021-06-01"
+
+        # Make the API call to retrieve the Synapse Workspace object
         $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Management_headers
 
-        foreach ($SQLObject in $result.value)
+        # Loop through each workspace object returned by the API call
+        foreach ($WorkspaceObject in $result.value)
         {
-            # Check if the current SQL object matches the specified workspace name
-            if ($SQLObject.name -eq $WorkspaceName)
+            # Check if the current workspace object matches the specified workspace name
+            if ($WorkspaceObject.name -eq $WorkspaceName)
             {
-                # Set the SQL endpoint
-                $SQLEndpoint = "$WorkspaceName.database.windows.net"
-                Write-Host "      - SQLEndpoint: ($($SQLEndpoint))"
+                $SQLOndemandEndpoint = $WorkspaceObject.properties.connectivityEndpoints.sqlOnDemand
+                $DevEndpoint = $WorkspaceObject.properties.connectivityEndpoints.dev    
+
+                # If the workspace is a Synapse workspace, set the appropriate endpoints
+                if ($WorkspaceObject.properties.extraProperties.WorkspaceType -eq "Normal") {
+                    $SQLEndpoint = $WorkspaceObject.properties.connectivityEndpoints.sql
+                    $isSynapseWorkspace = $true
+                }
+
+                # If the workspace is a former SQL DW, set the appropriate endpoint
+                if ($WorkspaceObject.properties.extraProperties.WorkspaceType -eq "Connected") {
+                    $SQLEndpoint = "$WorkspaceName.database.windows.net"
+                }
+                
                 break
             }
         }
+
+        # If a DevEndpoint was found, output the endpoints
+        if ($null -ne $DevEndpoint) 
+        {
+            Write-Host "     - SQLEndpoint: ($($SQLEndpoint))"
+            Write-Host "     - SQLOndemandEndpoint: ($($SQLOndemandEndpoint))"
+            Write-Host "     - DevEndpoint: ($($DevEndpoint))"
+        }
+        else #former SQL DW
+        {
+            
+            $uri = "https://management.azure.com/subscriptions/$($SubscriptionID)"
+            $uri += "/providers/Microsoft.SQL/servers?api-version=2022-05-01-preview"
+
+            $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Management_headers
+
+            foreach ($SQLObject in $result.value)
+            {
+                # Check if the current SQL object matches the specified workspace name
+                if ($SQLObject.name -eq $WorkspaceName)
+                {
+                    # Set the SQL endpoint
+                    $SQLEndpoint = "$WorkspaceName.database.windows.net"
+                    Write-Host "      - SQLEndpoint: ($($SQLEndpoint))"
+                    break
+                }
+            }
+        }
+        Write-Host "   - SUCESS:: Connection Management ENDPOINT"  -ForegroundColor Green        
     }
-    Write-Host "   - SUCESS:: Connection Management ENDPOINT"  -ForegroundColor Green        
-}
-catch {
-    # Handle any errors that occur during the API calls
-    Write-Host "   - ERROR:: TEST Management ENDPOINT" -ForegroundColor Red
-    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+    catch {
+        # Handle any errors that occur during the API calls
+        Write-Host "   - ERROR:: TEST Management ENDPOINT" -ForegroundColor Red
+        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
 
-    if ($_.Exception.Response.StatusCode -eq "Forbidden") {
-        Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
-        Write-Host ">> - ERROR:: You do not have permission to reach management.azure.com API" -ForegroundColor Cyan
-        Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan   
+        if ($_.Exception.Response.StatusCode -eq "Forbidden") {
+            Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
+            Write-Host ">> - ERROR:: You do not have permission to reach management.azure.com API" -ForegroundColor Cyan
+            Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan   
+        }
+
     }
 
-}
 
+    #----------------------------------------------------------------------------------------------------------------------
+    #Testing SQL DEV API
+    $DevEndpoint = "$($WorkspaceName).dev.azuresynapse.net"
+    Write-Host "  ----------------------------------------------------------------------------"
+    Write-Host "  -Testing SQL DEV API ($($DevEndpoint)) on Port 443" -ForegroundColor DarkGray
 
-#----------------------------------------------------------------------------------------------------------------------
-#Testing SQL DEV API
-$DevEndpoint = "$($WorkspaceName).dev.azuresynapse.net"
-Write-Host "  ----------------------------------------------------------------------------"
-Write-Host "  -Testing SQL DEV API ($($DevEndpoint)) on Port 443" -ForegroundColor DarkGray
+    try 
+    {
+        #https://learn.microsoft.com/en-us/rest/api/synapse/data-plane/workspace/get?tabs=HTTP
+        #GET {endpoint}/workspace?api-version=2020-12-01         
+        
+        $uri = "https://$($DevEndpoint)/workspace?api-version=2020-12-01"
 
-try 
-{
-    #https://learn.microsoft.com/en-us/rest/api/synapse/data-plane/workspace/get?tabs=HTTP
-    #GET {endpoint}/workspace?api-version=2020-12-01         
-    
-    $uri = "https://$($DevEndpoint)/workspace?api-version=2020-12-01"
+        Write-Host "   > API CALL ($($uri))"
 
-    Write-Host "   > API CALL ($($uri))"
-
-    $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Dev_headers
-    Write-Host "   - SUCESS:: Connection DEV ENDPOINT"  -ForegroundColor Green
-}
-catch {
-    Write-Host "   - ERROR:: TEST DEV ENDPOINT"  -ForegroundColor Red
-    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-
-    if ($_.Exception.Response.StatusCode -eq "Forbidden") {
-        Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
-        Write-Host ">> - ERROR:: You do not have permission to reach Synapse DEV API ($($DevEndpoint))" -ForegroundColor Cyan
-        Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan           
+        $result = Invoke-RestMethod -Method Get -ContentType "application/json" -Uri $uri -Headers $Dev_headers
+        Write-Host "   - SUCESS:: Connection DEV ENDPOINT"  -ForegroundColor Green
     }
-}
+    catch {
+        Write-Host "   - ERROR:: TEST DEV ENDPOINT"  -ForegroundColor Red
+        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+
+        if ($_.Exception.Response.StatusCode -eq "Forbidden") {
+            Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
+            Write-Host ">> - ERROR:: You do not have permission to reach Synapse DEV API ($($DevEndpoint))" -ForegroundColor Cyan
+            Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan           
+        }
+    }
 
 
-#----------------------------------------------------------------------------------------------------------------------
-# Import SQLServer module
-try {
-    Import-Module SQLServer -ErrorAction Stop
-}
-catch {
-    Write-Host "   - ERROR::Import-Module SqlServer"  -ForegroundColor Red
-    Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "   - INSTALL SQL Server MODULE AND TRY AGAIN OR ELSE CANNOT PROCESS TEST SQL LOGIN" -ForegroundColor Yellow
-    Write-Host "     - https://learn.microsoft.com/en-us/sql/powershell/sql-server-powershell" -ForegroundColor Yellow
-    Write-Host "     - Install-Module -Name SqlServer -Repository PSGallery -Force" -ForegroundColor Yellow
-    break
-}
+    #----------------------------------------------------------------------------------------------------------------------
+    # Import SQLServer module
+    try {
+        Import-Module SQLServer -ErrorAction Stop
+    }
+    catch {
+        Write-Host "   - ERROR::Import-Module SqlServer"  -ForegroundColor Red
+        Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "   - INSTALL SQL Server MODULE AND TRY AGAIN OR ELSE CANNOT PROCESS TEST SQL LOGIN" -ForegroundColor Yellow
+        Write-Host "     - https://learn.microsoft.com/en-us/sql/powershell/sql-server-powershell" -ForegroundColor Yellow
+        Write-Host "     - Install-Module -Name SqlServer -Repository PSGallery -Force" -ForegroundColor Yellow
+        break
+    }
 
-#----------------------------------------------------------------------------------------------------------------------
-#Testing SQL connection
-Write-Host "  ----------------------------------------------------------------------------"
-Write-Host "  -Testing SQL connection ($($SQLEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
+    #----------------------------------------------------------------------------------------------------------------------
+    #Testing SQL connection
+    Write-Host "  ----------------------------------------------------------------------------"
+    Write-Host "  -Testing SQL connection ($($SQLEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
 
-if ($null -eq $SQLEndpoint)
-{
-    Write-Host "   - ERROR:: CANNOT TEST SQL connection"  -ForegroundColor Red
-}
-else 
-{
-    TestSQLConnection -ServerName $SQLEndpoint -DatabaseName "master" -SQLConnectionTimeout $SQLConnectionTimeout -SQLQueryTimeout $SQLQueryTimeout -SQL_token $SQL_token
-}
+    if ($null -eq $SQLEndpoint)
+    {
+        Write-Host "   - ERROR:: CANNOT TEST SQL connection"  -ForegroundColor Red
+    }
+    else 
+    {
+        TestSQLConnection -ServerName $SQLEndpoint -DatabaseName "master" -SQLConnectionTimeout $SQLConnectionTimeout -SQLQueryTimeout $SQLQueryTimeout -SQL_token $SQL_token
+    }
 
-#----------------------------------------------------------------------------------------------------------------------
-#Testing SQL Ondemand connection
-$SQLOndemandEndpoint = "$($WorkspaceName)-ondemand.sql.azuresynapse.net"
-Write-Host "  ----------------------------------------------------------------------------"
-Write-Host "  -Testing SQL Ondemand connection ($($SQLOndemandEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
+    #----------------------------------------------------------------------------------------------------------------------
+    #Testing SQL Ondemand connection
+    $SQLOndemandEndpoint = "$($WorkspaceName)-ondemand.sql.azuresynapse.net"
+    Write-Host "  ----------------------------------------------------------------------------"
+    Write-Host "  -Testing SQL Ondemand connection ($($SQLOndemandEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
 
-if ($SQLOndemandEndpoint -eq $null) 
-{
-    Write-Host "   - ERROR:: CANNOT TEST SQL Ondemand connection"  -ForegroundColor Red
-}
-else 
-{
-    TestSQLConnection -ServerName $SQLOndemandEndpoint -DatabaseName "master" -SQLConnectionTimeout $SQLConnectionTimeout -SQLQueryTimeout $SQLQueryTimeout -SQL_token $SQL_token
-}
+    if ($SQLOndemandEndpoint -eq $null) 
+    {
+        Write-Host "   - ERROR:: CANNOT TEST SQL Ondemand connection"  -ForegroundColor Red
+    }
+    else 
+    {
+        TestSQLConnection -ServerName $SQLOndemandEndpoint -DatabaseName "master" -SQLConnectionTimeout $SQLConnectionTimeout -SQLQueryTimeout $SQLQueryTimeout -SQL_token $SQL_token
+    }
 
-#endregion TEST API CALLs
+    #endregion TEST API CALLs
+}
 
 ####################################################################################################################################################
 # Just a note
