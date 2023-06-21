@@ -227,6 +227,54 @@ $Message = "Version: " + $VERSION
 logEvent -Message $Message -AnonymousRunId $AnonymousRunId
 
 
+<#
+.SYNOPSIS
+Sends a ANONYMOUS TELEMETRY event to Azure Application Insights.
+
+.DESCRIPTION
+The logEvent function sends a custom event to Azure Application Insights. The event contains a message and an anonymous run ID. If the anonymous run ID is not provided, a new GUID is generated.
+
+.PARAMETER Message
+The message to be included in the event.
+
+.PARAMETER AnonymousRunId
+The anonymous run ID to be included in the event. If not provided, a new GUID is generated.
+
+.EXAMPLE
+logEvent -Message "This is a test message" -AnonymousRunId "12345"
+
+#>
+
+#NEED TO BE DONE
+function logException
+{
+    param (
+        [String]$Message,
+        [String]$AnonymousRunId = ([guid]::NewGuid()).Guid
+    )
+    try {
+        $InstrumentationKey = "d94ff6ec-feda-4cc9-8d0c-0a5e6049b581"        
+        $body = New-Object PSObject `
+        | Add-Member -PassThru NoteProperty name 'Microsoft.ApplicationInsights.Event' `
+        | Add-Member -PassThru NoteProperty time $([System.dateTime]::UtcNow.ToString('o')) `
+        | Add-Member -PassThru NoteProperty iKey $InstrumentationKey `
+        | Add-Member -PassThru NoteProperty tags (New-Object PSObject | Add-Member -PassThru NoteProperty 'ai.user.id' $AnonymousRunId) `
+        | Add-Member -PassThru NoteProperty data (New-Object PSObject `
+            | Add-Member -PassThru NoteProperty baseType 'EventData' `
+            | Add-Member -PassThru NoteProperty baseData (New-Object PSObject `
+                | Add-Member -PassThru NoteProperty ver 2 `
+                | Add-Member -PassThru NoteProperty name $Message));
+        $body = $body | ConvertTo-JSON -depth 5;
+        Invoke-WebRequest -Uri 'https://dc.services.visualstudio.com/v2/track' -ErrorAction SilentlyContinue -Method 'POST' -UseBasicParsing -body $body > $null
+    }
+    catch {
+        #Do nothing
+
+        #Write-Host "ERROR ($($_.Exception))"
+    }        
+}
+
+
 
 ####################################################################################################################################################
 #region Class
@@ -813,7 +861,7 @@ foreach ($EndpointTest in $EndpointTestList)
 }
 
 if ($isAnyPortClosed) {
-    [void]$Summary.AppendLine(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    [void]$Summary.AppendLine(">>----------------------------------------------------------------------------")
     [void]$Summary.Append(">>ALERT:: IF ANY PORT IS")
     [void]$Summary.Append(" CLOSED ")
     [void]$Summary.Append("NEED TO MAKE SURE YOUR")
@@ -836,34 +884,9 @@ if ($isAnyPortClosed) {
     [void]$Summary.AppendLine(">> - Test-NetConnection -Port 1433 -ComputerName SERVERNAME.sql.azuresynapse.net")
     [void]$Summary.AppendLine(">> - Test-NetConnection -Port 1433 -ComputerName SERVERNAME-ondemand.sql.azuresynapse.net")
     [void]$Summary.AppendLine(">> - Test-NetConnection -Port 1443 -ComputerName SERVERNAME-ondemand.sql.azuresynapse.net")
-    [void]$Summary.AppendLine(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    [void]$Summary.AppendLine(">>----------------------------------------------------------------------------")
+    [void]$Summary.AppendLine("")
 
-    <#
-    Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
-    Write-Host ">>ALERT:: IF ANY PORT IS" -ForegroundColor Cyan -NoNewline
-    Write-Host " CLOSED " -ForegroundColor Red -NoNewline
-    Write-Host "NEED TO MAKE SURE YOUR" -ForegroundColor Cyan -NoNewline
-    Write-Host " CLIENT SIDE FIREWALL " -ForegroundColor Yellow -NoNewline
-    Write-Host "IS" -ForegroundColor Cyan -NoNewline
-    Write-Host " OPEN" -ForegroundColor Green
-    Write-Host ">>CHECK" -ForegroundColor Cyan
-    Write-Host ">> - https://learn.microsoft.com/en-us/azure/synapse-analytics/security/synapse-workspace-ip-firewall#connect-to-azure-synapse-from-your-own-network" -ForegroundColor Cyan
-    Write-Host ">> - https://techcommunity.microsoft.com/t5/azure-synapse-analytics-blog/synapse-connectivity-series-part-1-inbound-sql-dw-connections-on/ba-p/3589170" -ForegroundColor Cyan
-    Write-Host ">> - https://techcommunity.microsoft.com/t5/azure-synapse-analytics-blog/synapse-connectivity-series-part-2-inbound-synapse-private/ba-p/3705160" -ForegroundColor Cyan
-    Write-Host ">>" -ForegroundColor Cyan
-    Write-Host ">>CAN ALSO TEST MANUALLY LIKE BELOW" -ForegroundColor Cyan
-    Write-Host ">> NAME RESOLUTION" -ForegroundColor Cyan
-    Write-Host ">> - NSLOOKUP SERVERNAME.sql.azuresynapse.net" -ForegroundColor Cyan
-    Write-Host ">> - NSLOOKUP SERVERNAME-ondemand.sql.azuresynapse.net" -ForegroundColor Cyan
-    Write-Host ">> - NSLOOKUP SERVERNAME.dev.azuresynapse.net" -ForegroundColor Cyan
-    Write-Host ">> PORT IS OPEN" -ForegroundColor Cyan
-    Write-Host ">> - Test-NetConnection -Port XXXX -ComputerName XXXENDPOINTXXX" -ForegroundColor Cyan
-    Write-Host ">> - Test-NetConnection -Port 443  -ComputerName SERVERNAME.dev.azuresynapse.net" -ForegroundColor Cyan
-    Write-Host ">> - Test-NetConnection -Port 1433 -ComputerName SERVERNAME.sql.azuresynapse.net" -ForegroundColor Cyan
-    Write-Host ">> - Test-NetConnection -Port 1433 -ComputerName SERVERNAME-ondemand.sql.azuresynapse.net" -ForegroundColor Cyan
-    Write-Host ">> - Test-NetConnection -Port 1443 -ComputerName SERVERNAME-ondemand.sql.azuresynapse.net" -ForegroundColor Cyan
-    Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
-    #>
 }
 
 
@@ -932,13 +955,71 @@ if ($DebugConnectToEndpoints)
             if ( ($null -eq $SQL_token) -or ("" -eq $SQL_token))
             {
                 Write-Host "   - WARN:: SQL TOKEN NOT VALID. TESTING CONNECTION WITH FAKE SQL USER + PASSWORD, it will fail but we can check if can reach server"  -ForegroundColor Yellow
-                $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseName -Username $SQL_user -Password $SQL_password -Query $Query -ConnectionTimeout $SQLConnectionTimeout -QueryTimeout $SQLQueryTimeout -ErrorAction Stop
-                Write-Host "   - SUCESS:: Connection connection_id($($result.connection_id)) / UTC date($($result.DATE))" -ForegroundColor Green
+                
+                $maxRetries = 3
+                $retryCount = 0
+                $retryDelay = 5 # seconds
+
+                do {
+                    try {
+                        $result = Invoke-Sqlcmd `
+                            -ServerInstance $ServerName `
+                            -Database $DatabaseName `
+                            -Username $SQL_user `
+                            -Password $SQL_password `
+                            -Query $Query `
+                            -ConnectionTimeout $SQLConnectionTimeout `
+                            -QueryTimeout $SQLQueryTimeout `
+                            -ErrorAction Stop
+
+                        Write-Host "   - SUCESS:: Connection connection_id($($result.connection_id)) / UTC date($($result.DATE))" -ForegroundColor Green
+                        break # exit the loop if the command succeeds
+                    } catch {
+
+                        $retryCount++
+                        if ($retryCount -lt $maxRetries) {
+                            Write-Host "Retrying in $retryDelay seconds..."
+                            Start-Sleep -Seconds $retryDelay
+                        } else {
+                            Write-Host "Maximum retries reached. Aborting."
+                            throw # re-throw the exception if the maximum retries are reached
+                        }
+                    }
+                } while ($retryCount -lt $maxRetries)
+                
             }
             else
             {
-                $result = Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseName -AccessToken $SQL_token -Query $Query -ConnectionTimeout $SQLConnectionTimeout -QueryTimeout $SQLQueryTimeout -ErrorAction Stop
-                Write-Host "   - SUCESS:: Connection connection_id($($result.connection_id)) / UTC date($($result.DATE))" -ForegroundColor Green
+                $maxRetries = 3
+                $retryCount = 0
+                $retryDelay = 5 # seconds
+
+                do {
+                    try {
+                        $result = Invoke-Sqlcmd `
+                            -ServerInstance $ServerName `
+                            -Database $DatabaseName `
+                            -AccessToken $SQL_token `
+                            -Query $Query `
+                            -ConnectionTimeout $SQLConnectionTimeout `
+                            -QueryTimeout $SQLQueryTimeout `
+                            -ErrorAction Stop
+
+                        Write-Host "   - SUCESS:: Connection connection_id($($result.connection_id)) / UTC date($($result.DATE))" -ForegroundColor Green
+                        break # exit the loop if the command succeeds
+                    } catch {
+
+                        $retryCount++
+                        if ($retryCount -lt $maxRetries) {
+                            Write-Host "Retrying in $retryDelay seconds..."
+                            Start-Sleep -Seconds $retryDelay
+                        } else {
+                            Write-Host "Maximum retries reached. Aborting."
+                            throw # re-throw the exception if the maximum retries are reached
+                        }
+                    }
+                } while ($retryCount -lt $maxRetries)
+                
             }
         }
         Catch [Exception]
@@ -951,14 +1032,28 @@ if ($DebugConnectToEndpoints)
                 {
                     Write-Host "   - ERROR:: ($($theError.Exception.GetType().FullName)):: TEST SQL ($($ServerName)) ENDPOINT" -ForegroundColor Red
                     $theError
-                }        
+                }
+                System.Data.SqlClient.SqlException
+                {
+                    Write-Host "   - ERROR:: ($($theError.Exception.GetType().FullName)):: TEST SQL ($($ServerName)) ENDPOINT"  -ForegroundColor Red
+                    Write-Host "     - Error: ($(@($theError.Exception.Errors)[0].Number)) / State: ($(@($theError.Exception.Errors)[0].State)) / Message: ($($theError.Exception.Message))" -ForegroundColor Red
+                    Write-Host "     - ClientConnectionId: $($theError.Exception.ClientConnectionId)" -ForegroundColor Red
+
+                    if ($theError.Exception.Message -like "*Login failed for user '<token-identified principal>'*")
+                    {
+                        [void]$Summary.AppendLine(">>----------------------------------------------------------------------------")
+                        [void]$Summary.AppendLine(">> - ERROR::($($ServerName)) Login failed for user '<token-identified principal>")
+                        [void]$Summary.AppendLine(">>   - CHECK")
+                        [void]$Summary.AppendLine(">>     - https://techcommunity.microsoft.com/t5/azure-database-support-blog/aad-auth-error-login-failed-for-user-lt-token-identified/ba-p/1417535")
+                        [void]$Summary.AppendLine(">>----------------------------------------------------------------------------")
+                        [void]$Summary.AppendLine("")   
+                    }
+
+                }
                 default{
                     Write-Host "   - ERROR:: ($($theError.Exception.GetType().FullName)):: TEST SQL ($($ServerName)) ENDPOINT"  -ForegroundColor Red
                     Write-Host "     - Error: ($(@($theError.Exception.Errors)[0].Number)) / State: ($(@($theError.Exception.Errors)[0].State)) / Message: ($($theError.Exception.Message))" -ForegroundColor Red
                     Write-Host "     - ClientConnectionId: $($theError.Exception.ClientConnectionId)" -ForegroundColor Red
-                    #Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
-                    #Write-Host ">> - SQL ERROR MEANING" -ForegroundColor Cyan
-                    #Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan   
                 }
             }
         }
@@ -1109,10 +1204,13 @@ if ($DebugConnectToEndpoints)
         Write-Host "   - ERROR:: TEST Management ENDPOINT" -ForegroundColor Red
         Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
 
-        if ($_.Exception.Response.StatusCode -eq "Forbidden") {
-            Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
-            Write-Host ">> - ERROR:: You do not have permission to reach management.azure.com API" -ForegroundColor Cyan
-            Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan   
+        if ($_.Exception.Response.StatusCode -eq "Forbidden") 
+        {
+            [void]$Summary.AppendLine(">>----------------------------------------------------------------------------")
+            [void]$Summary.AppendLine(">> - ERROR:: Calling management endpoint (management.azure.com) on Port 443 failed")
+            [void]$Summary.AppendLine(">>   - You do not have permission to reach management.azure.com API")
+            [void]$Summary.AppendLine(">>----------------------------------------------------------------------------")
+            [void]$Summary.AppendLine("")
         }
 
     }
@@ -1140,10 +1238,12 @@ if ($DebugConnectToEndpoints)
         Write-Host "   - ERROR:: TEST DEV ENDPOINT"  -ForegroundColor Red
         Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
 
-        if ($_.Exception.Response.StatusCode -eq "Forbidden") {
-            Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
-            Write-Host ">> - ERROR:: You do not have permission to reach Synapse DEV API ($($DevEndpoint))" -ForegroundColor Cyan
-            Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan           
+        if ($_.Exception.Response.StatusCode -eq "Forbidden") {           
+            [void]$Summary.AppendLine(">>----------------------------------------------------------------------------")
+            [void]$Summary.AppendLine(">> - ERROR:: Calling Synapse DEV API ($($DevEndpoint)) on Port 443 failed")
+            [void]$Summary.AppendLine(">>   - You do not have permission to reach Synapse DEV API ($($DevEndpoint))")
+            [void]$Summary.AppendLine(">>----------------------------------------------------------------------------")
+            [void]$Summary.AppendLine("")
         }
     }
 
@@ -1165,15 +1265,21 @@ if ($DebugConnectToEndpoints)
     #----------------------------------------------------------------------------------------------------------------------
     #Testing SQL connection
     Write-Host "  ----------------------------------------------------------------------------"
-    Write-Host "  -Testing SQL connection ($($SQLEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
-
     if ($null -eq $SQLEndpoint)
     {
-        Write-Host "   - ERROR:: CANNOT TEST SQL connection"  -ForegroundColor Red
+        $SQLEndpoint = "$($WorkspaceName).sql.azuresynapse.net"
     }
-    else 
+
+    Write-Host "  -Testing SQL connection ($($SQLEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
+
+    if ($null -ne $SQLEndpoint)
     {
-        TestSQLConnection -ServerName $SQLEndpoint -DatabaseName "master" -SQLConnectionTimeout $SQLConnectionTimeout -SQLQueryTimeout $SQLQueryTimeout -SQL_token $SQL_token
+        TestSQLConnection `
+            -ServerName $SQLEndpoint `
+            -DatabaseName "master" `
+            -SQLConnectionTimeout $SQLConnectionTimeout `
+            -SQLQueryTimeout $SQLQueryTimeout `
+            -SQL_token $SQL_token
     }
 
     #----------------------------------------------------------------------------------------------------------------------
@@ -1182,13 +1288,14 @@ if ($DebugConnectToEndpoints)
     Write-Host "  ----------------------------------------------------------------------------"
     Write-Host "  -Testing SQL Ondemand connection ($($SQLOndemandEndpoint)) / [MASTER] DB on Port 1433" -ForegroundColor DarkGray
 
-    if ($SQLOndemandEndpoint -eq $null) 
+    if ($null -ne $SQLOndemandEndpoint) 
     {
-        Write-Host "   - ERROR:: CANNOT TEST SQL Ondemand connection"  -ForegroundColor Red
-    }
-    else 
-    {
-        TestSQLConnection -ServerName $SQLOndemandEndpoint -DatabaseName "master" -SQLConnectionTimeout $SQLConnectionTimeout -SQLQueryTimeout $SQLQueryTimeout -SQL_token $SQL_token
+        TestSQLConnection `
+            -ServerName $SQLOndemandEndpoint `
+            -DatabaseName "master" `
+            -SQLConnectionTimeout $SQLConnectionTimeout `
+            -SQLQueryTimeout $SQLQueryTimeout `
+            -SQL_token $SQL_token
     }
 
     #endregion TEST API CALLs
