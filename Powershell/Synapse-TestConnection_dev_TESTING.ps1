@@ -5,7 +5,7 @@
     Author: Sergio Fonseca
     Twitter @FonsecaSergio
     Email: sergio.fonseca@microsoft.com
-    Last Updated: 2023-05-29
+    Last Updated: 2023-06-21
 
     ## Copyright (c) Microsoft Corporation.
     #Licensed under the MIT license.
@@ -84,11 +84,12 @@ ADDITIONAL INFO
                  - Adding additional URLs from https://learn.microsoft.com/en-us/azure/synapse-analytics/security/how-to-connect-to-workspace-from-restricted-network#step-6-allow-url-through-firewall
                  - Small fixes and improvements
     - 2023-05-29 - Documented and improved using GitHub Copilot chatbot
+    - 2023-06-21 - Some small fixes
+                 - Removed public DNS check. Many CX have blocked internet and requestes were failing and causing confusion
 
 #KNOW ISSUES / TO DO
     - Need to make / test on linux / Mac machines
     - Sign code
-    - Print IPV6 DNS on show results
     - Add links and solution to errors
 #> 
 
@@ -112,7 +113,7 @@ Clear-Host
 
 ####################################################################################################################################################
 #LOG VERSIONS
-New-Variable -Name VERSION -Value "2023-05-29" -Option Constant -ErrorAction Ignore
+New-Variable -Name VERSION -Value "2023-06-21" -Option Constant -ErrorAction Ignore
 New-Variable -Name AnonymousRunId -Value ([guid]::NewGuid()).Guid -Option Constant -ErrorAction Ignore
 
 Write-Host ("Current version: " + $VERSION)
@@ -166,15 +167,14 @@ if (-not(Get-Module -Name DnsClient -ListAvailable)) {
 ####################################################################################################################################################
 #region OTHER PARAMETERS / CONSTANTS
 
-New-Variable -Name DNSPublic -Value "8.8.8.8" -Option Constant -ErrorAction Ignore #GoogleDNS
-New-Variable -Name TestPortConnectionTimeoutMs -Value 2000 -Option Constant -ErrorAction Ignore
+New-Variable -Name TestPortConnectionTimeoutMs -Value 1000 -Option Constant -ErrorAction Ignore
 New-Variable -Name SQLConnectionTimeout -Value 15 -Option Constant -ErrorAction Ignore
 New-Variable -Name SQLQueryTimeout -Value 15 -Option Constant -ErrorAction Ignore
 New-Variable -Name HostsFile -Value "$env:SystemDrive\Windows\System32\Drivers\etc\hosts" -Option Constant -ErrorAction Ignore
 New-Variable -Name DebugConnectToEndpoints -Value $true -Option Constant -ErrorAction Ignore #Used for debug. Will not make real connection test to endpoints
 
 #endregion OTHER PARAMETERS / CONSTANTS
-
+$Summary = New-Object System.Text.StringBuilder
 
 ####################################################################################################################################################
 #Telemetry
@@ -266,9 +266,8 @@ Class EndpointTest
 {
     [Endpoint]$Endpoint
     [String]$CXResolvedIP
+    [String]$CXHostFileIP
     [String]$CXResolvedCNAME
-    [String]$PublicIP
-    [String]$PublicCNAME
 
     [bool]$isAnyPortClosed = $false
 
@@ -285,11 +284,10 @@ Class EndpointTest
         {
             $DNSResults = (Resolve-DnsName -Name $this.Endpoint.Name -DnsOnly -Type A -QuickTimeout -ErrorAction Stop)
             $this.CXResolvedIP = @($DNSResults.IP4Address)[0]
-            if ($DNSResults.NameHost.Count -gt 0) 
+            if ($DNSResults.NameHost.Count -gt 0 -and $null -ne $this.CXResolvedIP -and $this.CXResolvedIP -ne "") 
             {
-                $this.CXResolvedCNAME = $DNSResults.NameHost[$DNSResults.NameHost.Count - 1]
+                $this.CXResolvedCNAME = @($DNSResults.NameHost)[$DNSResults.NameHost.Count - 1]
             }
-            
         }
         catch 
         {
@@ -299,86 +297,75 @@ Class EndpointTest
     }
 
     #----------------------------------------------------------------------------------------------------------------------
-    [void] Resolve_DnsName_PublicDNS ([string]$DNSServer)
-    {
-        try 
-        {
-            $DNSResults = (Resolve-DnsName -Name $this.Endpoint.Name -DnsOnly -Type A -QuickTimeout -Server $DNSServer  -ErrorAction Stop)
-            $this.PublicIP = @($DNSResults.IP4Address)[0]
-
-            if ($DNSResults.NameHost.Count -gt 0) 
-            {
-                $this.PublicCNAME = $DNSResults.NameHost[$DNSResults.NameHost.Count - 1]
-            }
-
-            
-        }
-        catch 
-        {
-            Write-Host "   - ERROR:: Trying to resolve DNS for $($this.Endpoint.Name) with DNS Server $($DNSServer) - NOT AN ISSUE IF FAIL. Used just for comparison" -ForegroundColor DarkGray
-            Write-Host "     - $($_.Exception.Message)" -ForegroundColor Red
-        }
-    }
-
-    #----------------------------------------------------------------------------------------------------------------------
     #https://copdips.com/2019/09/fast-tcp-port-check-in-powershell.html
-    [void] Test_Ports ([Int]$Timeout = 2000)
-{
-    # Loop through each port needed by the endpoint
-    foreach ($Port in $this.Endpoint.PortsNeeded)
+    [void] Test_Ports ([Int]$Timeout = 1000)
     {
-        try {
-            # Create a new TCP client object
-            $tcpClient = New-Object System.Net.Sockets.TcpClient
+        $IPtoTest = $this.CXResolvedIP
 
-            # Check if the CX endpoint IP address has been resolved
-            if($null -ne $this.CXResolvedIP -and $this.CXResolvedIP -ne "") 
+        #Check what IP will be used for test
+        if($null -ne $this.CXHostFileIP -and $this.CXHostFileIP -ne "")
+        {
+            $IPtoTest = $this.CXHostFileIP
+        } 
+
+        # Loop through each port needed by the endpoint
+        foreach ($Port in $this.Endpoint.PortsNeeded)
+        {
+            try 
             {
-                $portOpened = $false
+                # Create a new TCP client object
+                $tcpClient = New-Object System.Net.Sockets.TcpClient
 
-                # Attempt to connect to the port asynchronously
-                $portOpened = $tcpClient.ConnectAsync($this.CXResolvedIP, $Port.Port).Wait($Timeout)
-
-                # If the port is open, set the result to "CONNECTED"
-                if($portOpened -eq $true) {
-                    $Port.Result = "CONNECTED"
+                # Check if the CX endpoint IP address has been resolved
+                if($null -eq $IPtoTest -or $IPtoTest -eq "")
+                {                    
+                    # If the IP address is not valid, set the result to "NOT VALID IP - NAME NOT RESOLVED"
+                    #Write-Host " -INFO:: NOT Testing Port / IP NOT VALID - $($this.Endpoint.Name) / IP($($this.CXResolvedIP)):PORT($($Port.Port))" -ForegroundColor Yellow
+                    $Port.Result = "CANNOT RESOLVE NAME - DNS ISSUE"
                 }
-                # If the port is closed, set the result to "CLOSED"
-                else{
-                    $Port.Result = "CLOSED"
-                }                   
-            } 
-            else 
-            {                    
-                # If the IP address is not valid, set the result to "NOT VALID IP - NAME NOT RESOLVED"
-                #Write-Host " -INFO:: NOT Testing Port / IP NOT VALID - $($this.Endpoint.Name) / IP($($this.CXResolvedIP)):PORT($($Port.Port))" -ForegroundColor Yellow
-                $Port.Result = "NOT VALID IP - NAME NOT RESOLVED"
-            }
+                else
+                {
+                    $portOpened = $false
 
-            # Close the TCP client object
-            $tcpClient.Close()
+                    # Attempt to connect to the port asynchronously
+                    $portOpened = $tcpClient.ConnectAsync($IPtoTest, $Port.Port).Wait($Timeout)
+
+                    # If the port is open, set the result to "CONNECTED"
+                    if($portOpened -eq $true) {
+                        $Port.Result = "CONNECTED"
+                    }
+                    # If the port is closed, set the result to "CLOSED"
+                    else{
+                        $Port.Result = "CLOSED"
+                    }                   
+                } 
+
+
+                # Close the TCP client object
+                $tcpClient.Close()
+            }
+            catch 
+            {
+                # If an error occurs, set the result to "CLOSED"
+                $Port.Result = "CLOSED"
+                Write-Host " -ERROR:: Testing Port $($this.Endpoint.Name) / IP($($IPtoTest)):PORT($($Port.Port))" -ForegroundColor DarkGray
+
+                # Check if the error is due to a non-existent host
+                if ($null -ne $_.Exception.InnerException.InnerException)
+                {
+                    if ($_.Exception.InnerException.InnerException.ErrorCode -eq 11001) { #11001 No such host is known                        
+                        Write-Host "  -ERROR:: Test-Port: ($($this.Endpoint.Name) / $($IPtoTest) : $($Port.Port)) - $($_.Exception.InnerException.InnerException.Message)" -ForegroundColor Red
+                    }
+                }
+                else {
+                    Write-Host "  -ERROR:: Test-Port: $($_.Exception.Message)" -ForegroundColor Red
+                }                
+            }          
         }
-        catch {
-            # If an error occurs, set the result to "CLOSED"
-            $Port.Result = "CLOSED"
-            Write-Host " -ERROR:: Testing Port $($this.Endpoint.Name) / IP($($this.CXResolvedIP)):PORT($($Port.Port))" -ForegroundColor DarkGray
-
-            # Check if the error is due to a non-existent host
-            if ($null -ne $_.Exception.InnerException.InnerException)
-            {
-                if ($_.Exception.InnerException.InnerException.ErrorCode -eq 11001) { #11001 No such host is known                        
-                    Write-Host "  -ERROR:: Test-Port: ($($this.Endpoint.Name) / $($this.CXResolvedIP) : $($Port.Port)) - $($_.Exception.InnerException.InnerException.Message)" -ForegroundColor Red
-                }
-            }
-            else {
-                Write-Host "  -ERROR:: Test-Port: $($_.Exception.Message)" -ForegroundColor Red
-            }                
-        }          
     }
-}
 
     #----------------------------------------------------------------------------------------------------------------------
-    [void] PrintTest_Endpoint ($HostsFileEntries, [string]$DNSPublic) 
+    [void] PrintTest_Endpoint ($HostsFileEntries) 
     {
         # Print the DNS information for the endpoint
         Write-Host "   ----------------------------------------------------------------------------"
@@ -400,21 +387,14 @@ Class EndpointTest
             }     
         }
 
-        # Print the public DNS information for the endpoint
-        Write-Host "      - Public DNS:($($this.PublicIP)) / NAME:($($this.PublicCNAME))"              
-
-        if ($null -eq $this.PublicIP) 
-        { 
-            # If the public IP is null, log a message to the console
-            #Write-Host "      - INFO:: PUBLIC NAME RESOLUTION DIDN'T WORK - DOES NOT MEAN A PROBLEM - Just could not reach Public DNS ($($DNSPublic)) to compare" -ForegroundColor Yellow 
-        }
-
         if ($_HaveHostsFileEntry)
         {# HAVE HOST FILE ENTRY           
             if ($HostsFileEntry.IP -ne $this.PublicIP) 
-                { Write-Host "      - INFO:: VM HOST FILE ENTRY AND PUBLIC DNS ARE NOT SAME" -ForegroundColor Yellow }
+            { 
+                #Write-Host "      - INFO:: VM HOST FILE ENTRY AND PUBLIC DNS ARE NOT SAME" -ForegroundColor Yellow 
+            }
 
-            Write-Host "      - INFO:: ENDPOINT CHANGED ON HOSTS FILE. NEED TO MANUALLY CHECK IF USING PRIVATE LINK or PUBLIC ENDPOINT" -ForegroundColor Yellow
+            Write-Host "      - INFO:: ENDPOINT FIXED ON HOSTS FILE" -ForegroundColor Yellow
         }
         else
         {# DOES NOT HAVE HOST FILE ENTRY
@@ -425,17 +405,6 @@ Class EndpointTest
             }
             else 
             {
-                if ($this.CXResolvedIP -eq $this.PublicIP) 
-                { 
-                    # If the CX resolved IP is equal to the public IP, log a message to the console
-                    #Write-Host "      - INFO:: That is not an issue :: CX DNS SERVER AND PUBLIC DNS ARE SAME. Just a notice that they are currently EQUAL" -ForegroundColor Green 
-                }
-                else 
-                { 
-                    # If the CX resolved IP is not equal to the public IP, log a message to the console
-                    Write-Host "      - INFO:: That is not an issue :: CX DNS SERVER AND PUBLIC DNS ARE NOT SAME. Just a notice that they are currently DIFFERENT" -ForegroundColor Yellow 
-                }
-
                 # Check if the CX endpoint is using a public or private endpoint
                 if (
                     $this.CXResolvedCNAME -like "*.cloudapp.*" -or `
@@ -457,7 +426,16 @@ Class EndpointTest
     #----------------------------------------------------------------------------------------------------------------------
     [void] PrintTest_Ports ()
     {
-        Write-host "    - TESTS FOR ENDPOINT - $($this.Endpoint.Name) - IP ($($this.CXResolvedIP))"
+        
+
+        if ($null -eq $this.CXHostFileIP -or $this.CXHostFileIP -eq "")
+        {
+            Write-host "    - TESTS FOR ENDPOINT - $($this.Endpoint.Name) - CX DNS IP ($($this.CXResolvedIP))"
+        }
+        else
+        {
+            Write-host "    - TESTS FOR ENDPOINT - $($this.Endpoint.Name) - CX HOSTFILE IP ($($this.CXHostFileIP))"
+        }
 
         foreach ($Port in $this.Endpoint.PortsNeeded)
         {
@@ -518,6 +496,9 @@ Write-Host "--------------------------------------------------------------------
 Write-Host "COLLECTING DATA" -ForegroundColor Yellow
 Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
 
+####################################################################################################################################################
+#region - HostsFile
+
 #----------------------------------------------------------------------------------------------------------------------
 <#
 .SYNOPSIS
@@ -539,7 +520,8 @@ Get-HostsFilesEntries
 
 This command reads the hosts file and returns the IP and Host entries as custom objects.
 #>
-function Get-HostsFilesEntries {
+function Get-HostsFilesEntries 
+{
     try {
         # This regular expression pattern matches IP and Host entries in the hosts file
         $Pattern = '^(?<IP>\d{1,3}(\.\d{1,3}){3})\s+(?<Host>.+)$'
@@ -565,8 +547,39 @@ function Get-HostsFilesEntries {
 $HostsFileEntries = @(Get-HostsFilesEntries)
 
 
+Write-Host "  ----------------------------------------------------------------------------"
+Write-Host "  HOSTS FILE [$($HostsFile)]"
+
+if ($HostsFileEntries.Count -gt 0) {
+    foreach ($HostsFileEntry in $HostsFileEntries)
+    {
+        $isFoundOnList = $false
+
+        #Write-Host "HostsFileEntry = $($HostsFileEntry)"
+        foreach ($EndpointTest in $EndpointTestList)
+        {
+            #Write-Host "EndpointTest = $($EndpointTest.Endpoint.Name)"
+            
+            if ($HostsFileEntry.HOST.Contains($EndpointTest.Endpoint.Name)) 
+            {
+                Write-Host "   - IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]" -ForegroundColor Red    
+                $isFoundOnList = $true
+
+                #Document the IP found on the HostsFile
+                $EndpointTestList[$EndpointTestList.IndexOf($EndpointTest)].CXHostFileIP = ($HostsFileEntry.IP)
+            }
+        }
+        if ($isFoundOnList -eq $false)
+        {
+            Write-Host "   - IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]"
+        }
+    }     
+}
+else {
+    Write-Host "   - NO RELATED ENTRY" -ForegroundColor Green
+}
+
 #----------------------------------------------------------------------------------------------------------------------
-# Get DNSs used by CX
 <#
 .SYNOPSIS
 Retrieves the DNS server addresses from the local machine.
@@ -582,7 +595,8 @@ PS C:\> Get-DnsCxServerAddresses
 Returns a list of DNS server addresses from the local machine.
 
 #>
-function Get-DnsCxServerAddresses {   
+function Get-DnsCxServerAddresses 
+{   
     try {
         # Get the DNS client server addresses
         $DNSServers = Get-DnsClientServerAddress -ErrorAction Stop
@@ -616,7 +630,6 @@ $DnsCxServerAddresses = Get-DnsCxServerAddresses
 foreach ($EndpointTest in $EndpointTestList)
 {
     $EndpointTest.Resolve_DnsName_CXDNS()
-    $EndpointTest.Resolve_DnsName_PublicDNS($DNSPublic)
 }
 
 #----------------------------------------------------------------------------------------------------------------------
@@ -639,39 +652,7 @@ Write-Host "RESULTS " -ForegroundColor Yellow
 Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
 
 
-####################################################################################################################################################
-#region RESULTS - HostsFile
 
-
-Write-Host "  ----------------------------------------------------------------------------"
-Write-Host "  HOSTS FILE [$($HostsFile)]"
-
-if ($HostsFileEntries.Count -gt 0) {
-    foreach ($HostsFileEntry in $HostsFileEntries)
-    {
-        $isFoundOnList = $false
-
-        #Write-Host "HostsFileEntry = $($HostsFileEntry)"
-        foreach ($EndpointTest in $EndpointTestList)
-        {
-            #Write-Host "EndpointTest = $($EndpointTest.Endpoint.Name)"
-            
-            if ($HostsFileEntry.HOST.Contains($EndpointTest.Endpoint.Name)) {
-                Write-Host "   - IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]" -ForegroundColor Red    
-                $isFoundOnList = $true
-            }
-        }
-        if ($isFoundOnList -eq $false)
-        {
-            Write-Host "   - IP [$($HostsFileEntry.IP)] / NAME [$($HostsFileEntry.HOST)]"
-        }
-    }     
-}
-else {
-    Write-Host "   - NO RELATED ENTRY" -ForegroundColor Green
-}
-
-#endregion RESULTS - HostsFile
 
 ####################################################################################################################################################
 #region RESULTS - DNS SERVERS
@@ -811,7 +792,7 @@ Write-Host "  NAME RESOLUTION "
 
 foreach ($EndpointTest in $EndpointTestList)
 {
-    $EndpointTest.PrintTest_Endpoint($HostsFileEntries, $DNSPublic)
+    $EndpointTest.PrintTest_Endpoint($HostsFileEntries)
 }
 
 #endregion RESULTS - NAME RESOLUTIONS
@@ -832,6 +813,32 @@ foreach ($EndpointTest in $EndpointTestList)
 }
 
 if ($isAnyPortClosed) {
+    [void]$Summary.AppendLine(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+    [void]$Summary.Append(">>ALERT:: IF ANY PORT IS")
+    [void]$Summary.Append(" CLOSED ")
+    [void]$Summary.Append("NEED TO MAKE SURE YOUR")
+    [void]$Summary.Append(" CLIENT SIDE FIREWALL ")
+    [void]$Summary.Append("IS")
+    [void]$Summary.AppendLine(" OPEN")
+    [void]$Summary.AppendLine(">>CHECK")
+    [void]$Summary.AppendLine(">> - https://learn.microsoft.com/en-us/azure/synapse-analytics/security/synapse-workspace-ip-firewall#connect-to-azure-synapse-from-your-own-network")
+    [void]$Summary.AppendLine(">> - https://techcommunity.microsoft.com/t5/azure-synapse-analytics-blog/synapse-connectivity-series-part-1-inbound-sql-dw-connections-on/ba-p/3589170")
+    [void]$Summary.AppendLine(">> - https://techcommunity.microsoft.com/t5/azure-synapse-analytics-blog/synapse-connectivity-series-part-2-inbound-synapse-private/ba-p/3705160")
+    [void]$Summary.AppendLine(">>")
+    [void]$Summary.AppendLine(">>CAN ALSO TEST MANUALLY LIKE BELOW")
+    [void]$Summary.AppendLine(">> NAME RESOLUTION")
+    [void]$Summary.AppendLine(">> - NSLOOKUP SERVERNAME.sql.azuresynapse.net")
+    [void]$Summary.AppendLine(">> - NSLOOKUP SERVERNAME-ondemand.sql.azuresynapse.net")
+    [void]$Summary.AppendLine(">> - NSLOOKUP SERVERNAME.dev.azuresynapse.net")
+    [void]$Summary.AppendLine(">> PORT IS OPEN")
+    [void]$Summary.AppendLine(">> - Test-NetConnection -Port XXXX -ComputerName XXXENDPOINTXXX")
+    [void]$Summary.AppendLine(">> - Test-NetConnection -Port 443  -ComputerName SERVERNAME.dev.azuresynapse.net")
+    [void]$Summary.AppendLine(">> - Test-NetConnection -Port 1433 -ComputerName SERVERNAME.sql.azuresynapse.net")
+    [void]$Summary.AppendLine(">> - Test-NetConnection -Port 1433 -ComputerName SERVERNAME-ondemand.sql.azuresynapse.net")
+    [void]$Summary.AppendLine(">> - Test-NetConnection -Port 1443 -ComputerName SERVERNAME-ondemand.sql.azuresynapse.net")
+    [void]$Summary.AppendLine(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+
+    <#
     Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
     Write-Host ">>ALERT:: IF ANY PORT IS" -ForegroundColor Cyan -NoNewline
     Write-Host " CLOSED " -ForegroundColor Red -NoNewline
@@ -856,6 +863,7 @@ if ($isAnyPortClosed) {
     Write-Host ">> - Test-NetConnection -Port 1433 -ComputerName SERVERNAME-ondemand.sql.azuresynapse.net" -ForegroundColor Cyan
     Write-Host ">> - Test-NetConnection -Port 1443 -ComputerName SERVERNAME-ondemand.sql.azuresynapse.net" -ForegroundColor Cyan
     Write-Host ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" -ForegroundColor Cyan
+    #>
 }
 
 
@@ -1186,20 +1194,30 @@ if ($DebugConnectToEndpoints)
     #endregion TEST API CALLs
 }
 
+
+####################################################################################################################################################
+# Summary
+####################################################################################################################################################
+Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
+Write-Host "Summary " -ForegroundColor Yellow
+Write-Host "------------------------------------------------------------------------------" -ForegroundColor Yellow
+
+Write-Host $Summary.ToString() -ForegroundColor Cyan
+
 ####################################################################################################################################################
 # Just a note
-Write-Host "   ----------------------------------------------------------------------------"
-Write-Host "   NOTE on differences for Dedicated pool endpoint"
-Write-Host "   ----------------------------------------------------------------------------"
-Write-Host "   SYNAPSE use endpoints below:"
+Write-Host "   ----------------------------------------------------------------------------"-ForegroundColor Cyan
+Write-Host "   NOTE on differences for Dedicated pool endpoint"-ForegroundColor Cyan
+Write-Host "   ----------------------------------------------------------------------------"-ForegroundColor Cyan
+Write-Host "   SYNAPSE use endpoints below:"-ForegroundColor Cyan
 Write-Host "    - XXXXXX.sql.azuresynapse.net <--" -ForegroundColor Yellow
-Write-Host "    - XXXXXX-ondemand.sql.azuresynapse.net"
-Write-Host "    - XXXXXX.dev.azuresynapse.net"
+Write-Host "    - XXXXXX-ondemand.sql.azuresynapse.net"-ForegroundColor Cyan
+Write-Host "    - XXXXXX.dev.azuresynapse.net"-ForegroundColor Cyan
 Write-Host ""
-Write-Host "   FORMER SQL DW + SYNAPSE WORKSPACE use endpoints below:"
+Write-Host "   FORMER SQL DW + SYNAPSE WORKSPACE use endpoints below:"-ForegroundColor Cyan
 Write-Host "    - XXXXXX.database.windows.net  <--" -ForegroundColor Yellow
-Write-Host "    - XXXXXX-ondemand.sql.azuresynapse.net"
-Write-Host "    - XXXXXX.dev.azuresynapse.net"
+Write-Host "    - XXXXXX-ondemand.sql.azuresynapse.net"-ForegroundColor Cyan
+Write-Host "    - XXXXXX.dev.azuresynapse.net"-ForegroundColor Cyan
 
 
 ####################################################################################################################################################
