@@ -18,8 +18,10 @@ SELECT * FROM sys.databases
 SELECT  'SERVER LOGIN'
 
 SELECT 
-    principal_id, name, type, type_desc, sid,
-    OBJECTIDorAPPID = CONVERT(uniqueidentifier, SID), SYSADMIN = IS_SRVROLEMEMBER ('sysadmin', name) --Used to make sure object id (AAD user / group) or application id (Serv Principal / Managed Identity) match with Azure AD info. Sample users that were recreated
+    principal_id, name, type, type_desc, 
+    IS_SRVROLEMEMBER ('sysadmin',name) as IsSysAdmin, 
+	IS_ROLEMEMBER ('db_owner',name) as Isdbowner,
+    sid, OBJECTIDorAPPID = CONVERT(uniqueidentifier, SID) --Used to make sure object id (AAD user / group) or application id (Serv Principal / Managed Identity) match with Azure AD info. Sample users that were recreated
 FROM sys.server_principals
 WHERE [principal_id] > 4
 AND type <> 'U'
@@ -29,8 +31,10 @@ AND name NOT LIKE '##%'
 SELECT  'DB USERS'
 
 SELECT 
-    principal_id, name, type, type_desc, sid, authentication_type, authentication_type_desc,
-    OBJECTIDorAPPID = CONVERT(uniqueidentifier, SID) --Used to make sure object id (AAD user / group) or application id (Serv Principal / Managed Identity) match with Azure AD info. Sample users that were recreated
+    principal_id, name, type, type_desc, authentication_type, authentication_type_desc,
+    IS_SRVROLEMEMBER ('sysadmin',name) as IsSysAdmin, 
+	IS_ROLEMEMBER ('db_owner',name) as Isdbowner,
+    sid, OBJECTIDorAPPID = CONVERT(uniqueidentifier, SID) --Used to make sure object id (AAD user / group) or application id (Serv Principal / Managed Identity) match with Azure AD info. Sample users that were recreated
 FROM sys.database_principals
 WHERE [principal_id] > 4
     --0 to 4 are system users/schemas
