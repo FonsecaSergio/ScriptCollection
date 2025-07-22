@@ -133,7 +133,7 @@ foreach ($workspace in $synapseWorkspaces) {
     } else {
         Write-Host "--------------------------------------------------------------------"
         Write-Host "Not updating Min TLS version"
-        Write-Host "To update the Min TLS version, set the \$UpdateMinTLS variable to \$true"
+        Write-Host "To update the Min TLS version, set the (UpdateMinTLS) variable to true"
         Write-Host "--------------------------------------------------------------------"
         continue
     }
